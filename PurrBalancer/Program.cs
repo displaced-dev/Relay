@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using HttpServerLite;
 using Newtonsoft.Json;
 
@@ -71,8 +72,13 @@ internal static class Program
 
         var host = https ? "purrbalancer.riten.dev" : "localhost";
         const int _Port = 8080;
+        
+        X509Certificate2? cert = null;
+        
+        if (https)
+            cert = new X509Certificate2(certPath, keyPath);
 
-        var webserver = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections);
+        var webserver = new Webserver(host, _Port, HandleIncomingConnections, cert);
 
         webserver.Settings.Headers.Host = $"{(https ? "https" : "http")}://{host}:{_Port}";
         Console.WriteLine($"Listening on {webserver.Settings.Headers.Host}");
