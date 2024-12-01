@@ -9,15 +9,17 @@ internal static class Program
 {
     static async Task HandleIncomingConnections(HttpContextBase ctx)
     {
-        // Peel out the requests and response objects
-        var req = ctx.Request;
-        var resp = ctx.Response;
-        
-        resp.Headers.Add("Access-Control-Allow-Methods", "GET");
-        resp.Headers.Add("Access-Control-Allow-Origin", "*");
+        Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url}");
         
         try
         {
+            // Peel out the requests and response objects
+            var req = ctx.Request;
+            var resp = ctx.Response;
+        
+            resp.Headers.Add("Access-Control-Allow-Methods", "GET");
+            resp.Headers.Add("Access-Control-Allow-Origin", "*");
+            
             var response = HTTPRestAPI.OnRequest(req);
             var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
@@ -28,7 +30,9 @@ internal static class Program
         }
         catch (Exception e)
         {
+            var resp = ctx.Response;
             var data = Encoding.UTF8.GetBytes(e.Message);
+            
             resp.StatusCode = 500;
             resp.ContentType = "text/plain";
             resp.ContentLength = data.LongLength;
