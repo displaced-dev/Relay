@@ -57,8 +57,8 @@ internal static class Program
     {
         _listener = new HttpListener();
         
-        _listener.Prefixes.Add("http://*:8080/");
-        _listener.Prefixes.Add("https://*:8443/");
+        _listener.Prefixes.Add("http://*:80/");
+        _listener.Prefixes.Add("https://*:443/");
         
         _listener.Start();
         
