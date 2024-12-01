@@ -11,11 +11,6 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
 
-    env:
-      SERVICE_NAME: PurrBalancer # Define the service name as a variable
-      DOMAIN: purrbalancer.riten.dev # Define the domain name
-      REPO_DIR: PurrLay # Define the repository directory name
-
     steps:
       - name: Executing remote SSH commands using password
         uses: appleboy/ssh-action@v1.0.0
@@ -25,6 +20,11 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
+            # Define variables
+            SERVICE_NAME="PurrBalancer"
+            DOMAIN="purrbalancer.riten.dev"
+            REPO_DIR="PurrLay"
+
             # Update and install dependencies
             apt-get update
             apt-get install -y dotnet-sdk-8.0 certbot
