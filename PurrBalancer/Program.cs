@@ -82,7 +82,8 @@ internal static class Program
                 Enable = https,
                 SslCertificate = cert,
                 PfxCertificateFile = certPath,
-                PfxCertificatePassword = keyPath
+                PfxCertificatePassword = keyPath,
+                AcceptInvalidAcertificates = true
             }
         };
         
