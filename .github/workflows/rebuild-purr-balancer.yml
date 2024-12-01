@@ -84,7 +84,7 @@ jobs:
             CERT_PATH="$CERT_DIR/fullchain.pem"
             KEY_PATH="$CERT_DIR/privkey.pem"
             echo "Starting $SERVICE_NAME with HTTPS..."
-            sudo nohup dotnet ./bin/Release/net8.0/$SERVICE_NAME \
+            sudo nohup ./bin/Release/net8.0/$SERVICE_NAME \
               --urls "http://*:8080;https://*:8443" \
               --cert "$CERT_PATH" \
               --key "$KEY_PATH" > /dev/null 2>&1 &
