@@ -88,7 +88,13 @@ internal static class Program
         };
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-        
+
+        if (https)
+        {
+            Console.WriteLine("Certificate Path: " + certPath);
+            Console.WriteLine("Key Path: " + keyPath);
+        }
+
         var server = new Webserver(settings, HandleIncomingConnections);
         
         server.Start();
