@@ -78,6 +78,7 @@ internal static class Program
         Console.WriteLine($"Listening on {webserver.Settings.Headers.Host}");
         
         webserver.Start();
-        Console.ReadKey();
+        
+        new ManualResetEvent(false).WaitOne();
     }
 }
