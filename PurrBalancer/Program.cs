@@ -61,9 +61,6 @@ internal static class Program
             case true when !File.Exists(certPath):
                 Console.WriteLine("Certificate file not found");
                 return;
-            case true when !File.Exists(keyPath):
-                Console.WriteLine("Key file not found");
-                return;
         }
 
         var host = https ? "purrbalancer.riten.dev" : "localhost";
