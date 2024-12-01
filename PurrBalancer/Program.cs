@@ -1,71 +1,67 @@
-﻿using System.Net;
-using System.Text;
+﻿using System.Text;
+using HttpServerLite;
 using Newtonsoft.Json;
 
 namespace PurrBalancer;
 
 internal static class Program
 {
-    static HttpListener? _listener;
-    
-    static async Task HandleIncomingConnections()
+    static async Task HandleIncomingConnections(HttpContext ctx)
     {
-        if (_listener == null)
-            return;
+        // Peel out the requests and response objects
+        var req = ctx.Request;
+        var resp = ctx.Response;
         
-        // While a user hasn't visited the `shutdown` url, keep on handling requests
-        while (true)
+        resp.Headers.Add("Access-Control-Allow-Methods", "GET");
+        resp.Headers.Add("Access-Control-Allow-Origin", "*");
+        req.Headers.Add("Accept-Charset", "utf-8");
+        
+        try
         {
-            // Will wait here until we hear from a connection
-            var ctx = await _listener.GetContextAsync();
+            var response = HTTPRestAPI.OnRequest(req);
+            var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
-            // Peel out the requests and response objects
-            var req = ctx.Request;
-            var resp = ctx.Response;
-            
-            resp.AddHeader("Access-Control-Allow-Methods", "GET");
-            resp.AppendHeader("Access-Control-Allow-Origin", "*");
-            
-            try
-            {
-                var response = HTTPRestAPI.OnRequest(req);
-                var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
-
-                resp.ContentType = "application/json";
-                resp.ContentEncoding = Encoding.UTF8;
-                resp.StatusCode = 200;
-                resp.ContentLength64 = data.LongLength;
-                await resp.OutputStream.WriteAsync(data);
-                resp.Close();
-            }
-            catch (Exception e)
-            {
-                var data = Encoding.UTF8.GetBytes(e.Message);
-                resp.StatusCode = 500;
-                resp.StatusDescription = "Internal Server Error";
-                resp.ContentType = "text/plain";
-                resp.ContentEncoding = Encoding.UTF8;
-                resp.ContentLength64 = data.LongLength;
-                resp.OutputStream.Write(data);
-                resp.Close();
-            }
+            resp.ContentType = "application/json";
+            resp.StatusCode = 200;
+            resp.ContentLength = data.LongLength;
+            await resp.SendAsync(data);
+            resp.Close();
+        }
+        catch (Exception e)
+        {
+            var data = Encoding.UTF8.GetBytes(e.Message);
+            resp.StatusCode = 500;
+            resp.StatusDescription = "Internal Server Error";
+            resp.ContentType = "text/plain";
+            resp.ContentLength = data.LongLength;
+            await resp.SendAsync(data);
+            resp.Close();
         }
     }
     
-    static void Main()
+    static void Main(string[] args)
     {
-        _listener = new HttpListener();
+        string certPath = string.Empty;
+        string keyPath = string.Empty;
         
-        _listener.Prefixes.Add("http://*:8080/");
-        _listener.Prefixes.Add("https://*:8443/");
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--cert" when i + 1 < args.Length:
+                    certPath = args[++i];
+                    break;
+                case "--key" when i + 1 < args.Length:
+                    keyPath = args[++i];
+                    break;
+            }
+        }
         
-        _listener.Start();
-        
-        // Handle requests
-        var listenTask = HandleIncomingConnections();
-        listenTask.GetAwaiter().GetResult();
+        bool https = !string.IsNullOrEmpty(certPath) && !string.IsNullOrEmpty(keyPath);
 
-        // Close the listener
-        _listener.Close();
+        var webserver = new Webserver("*", 8080, https, certPath, keyPath, HandleIncomingConnections);
+        webserver.Start();
+
+        Console.ReadKey();
     }
 }

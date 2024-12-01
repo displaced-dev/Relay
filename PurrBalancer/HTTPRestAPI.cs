@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿using HttpServerLite;
 using Newtonsoft.Json.Linq;
 
 namespace PurrBalancer;
@@ -21,12 +21,12 @@ public static class HTTPRestAPI
         }
     ];
     
-    public static JObject OnRequest(HttpListenerRequest req)
+    public static JObject OnRequest(HttpRequest req)
     {
         if (req.Url == null)
             throw new Exception("Invalid URL");
 
-        string path = req.Url.AbsolutePath;
+        string path = req.Url.WithoutQuery;
 
         switch (path)
         {
