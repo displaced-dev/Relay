@@ -20,6 +20,11 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
+            # Update and install .NET 8.0
+            apt-get update
+            apt-get install -y dotnet-sdk-8.0
+            
+            # Configure Git
             git config --global user.name "GitHub Actions"
             git config --global credential.helper store
             echo "https://${{ secrets.GITHUB_TOKEN }}:@github.com" > ~/.git-credentials
