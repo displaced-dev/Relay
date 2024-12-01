@@ -1,0 +1,30 @@
+name: rebuild-purr-balancer
+on:
+  push:
+    branches: ['main']
+    paths: ['PurrBalancer/**']
+  workflow_dispatch:
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: 159.69.180.67
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            [ -d ${{ github.repository }} ] || git clone ${{ github.server_url }}/${{ github.repository }} PurrLay
+            cd PurrLay
+            git reset --hard @{u}
+            git clean -df
+            git pull
+            sudo killall -9 PurrBalancer
+            cd PurrBalancer
+            dotnet build --property:Configuration=Release
+            sudo nohup ./bin/Release/net8.0/PurrBalancer > /dev/null 2>&1 &
+            exit
