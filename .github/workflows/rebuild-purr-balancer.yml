@@ -69,6 +69,7 @@ jobs:
             git reset --hard @{u}
             git clean -df
             git pull https://${{ secrets.GITHUB_TOKEN }}:@github.com/${{ github.repository }}
+            git rev-parse HEAD
             
             # Stop existing service
             sudo killall -9 $SERVICE_NAME || true
