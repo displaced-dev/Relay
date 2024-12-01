@@ -1,5 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-using System.Text;
+﻿using System.Text;
 using Newtonsoft.Json;
 using WatsonWebserver.Core;
 using Webserver = WatsonWebserver.Webserver;

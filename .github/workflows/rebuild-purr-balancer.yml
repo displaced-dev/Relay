@@ -51,6 +51,9 @@ jobs:
             # Set certificate permissions
             chmod 600 "$CERT_DIR/privkey.pem"
             chmod 644 "$CERT_DIR/fullchain.pem"
+            
+            # Stop existing service
+            sudo killall -9 $SERVICE_NAME || true
 
             # Convert PEM files to PFX format
             echo "Converting PEM files to PFX format..."
@@ -89,7 +92,7 @@ jobs:
             
             # Start the application with HTTPS
             echo "Starting $SERVICE_NAME with HTTPS..."
-            sudo nohup dotnet ./bin/Release/net8.0/$SERVICE_NAME \
+            sudo nohup ./bin/Release/net8.0/$SERVICE_NAME \
               --urls "https://*:8080" \
               --cert "$PFX_CERT" \
               --key "$CERT_PASSWORD" > /dev/null 2>&1 &
