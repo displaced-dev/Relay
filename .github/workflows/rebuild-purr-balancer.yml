@@ -55,6 +55,10 @@ jobs:
             # Set certificate permissions
             chmod 644 "$CERT_DIR/fullchain.pem"
             chmod 600 "$CERT_DIR/privkey.pem"
+            
+            # Configure Git for SSH
+            eval "$(ssh-agent -s)"
+            ssh-add ~/.ssh/id_rsa
 
             # Configure Git
             git config --global user.name "GitHub Actions"
