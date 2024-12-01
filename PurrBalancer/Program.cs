@@ -72,14 +72,16 @@ internal static class Program
             {
                 Enable = https,
                 PfxCertificateFile = certPath,
-                PfxCertificatePassword = keyPath,
-                AcceptInvalidAcertificates = true
+                PfxCertificatePassword = keyPath
             }
         };
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-        var server = new Webserver(settings, HandleIncomingConnections);
         
+        if (https)
+            Console.WriteLine($"Using PFX Certificate: {certPath}");
+        
+        var server = new Webserver(settings, HandleIncomingConnections);
         server.Start();
         
         new ManualResetEvent(false).WaitOne();
