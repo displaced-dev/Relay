@@ -28,6 +28,12 @@ jobs:
             # Update and install dependencies
             apt-get update
             apt-get install -y dotnet-sdk-8.0 certbot
+
+            # Restart Certbot timer to ensure renewal works
+            systemctl restart certbot.timer
+            
+            # Debugging: Check DOMAIN value
+            echo "Using DOMAIN: $DOMAIN"
             
             # Configure certificate paths
             CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
@@ -36,7 +42,7 @@ jobs:
             # Obtain a Let's Encrypt SSL certificate
             if [ ! -d "$CERT_DIR" ]; then
               echo "Generating Let's Encrypt certificate..."
-              certbot certonly --standalone -d $DOMAIN --non-interactive --agree-tos -m valentin@riten.dev
+              certbot certonly --standalone -d $DOMAIN --non-interactive --no-eff-email --agree-tos -m valentin@riten.dev
               if [ $? -ne 0 ]; then
                 echo "Certbot failed! Check logs for details."
                 exit 1
