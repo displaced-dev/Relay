@@ -11,6 +11,11 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
 
+    env:
+      SERVICE_NAME: PurrBalancer # Define the service name as a variable
+      DOMAIN: purrbalancer.riten.dev # Define the domain name
+      REPO_DIR: PurrLay # Define the repository directory name
+
     steps:
       - name: Executing remote SSH commands using password
         uses: appleboy/ssh-action@v1.0.0
@@ -20,29 +25,60 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
-            # Update and install .NET 8.0
+            # Update and install dependencies
             apt-get update
-            apt-get install -y dotnet-sdk-8.0
+            apt-get install -y dotnet-sdk-8.0 certbot
             
+            # Configure certificate paths
+            CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
+            KEY_DIR="/etc/letsencrypt/live/$DOMAIN"
+            
+            # Obtain a Let's Encrypt SSL certificate
+            if [ ! -d "$CERT_DIR" ]; then
+              echo "Generating Let's Encrypt certificate..."
+              certbot certonly --standalone -d $DOMAIN --non-interactive --agree-tos -m valentin@riten.dev
+              if [ $? -ne 0 ]; then
+                echo "Certbot failed! Check logs for details."
+                exit 1
+              fi
+            else
+              echo "Skipping renewal; Certbot will auto-renew via its systemd timer."
+            fi
+            
+            # Set certificate permissions
+            chmod 644 "$CERT_DIR/fullchain.pem"
+            chmod 600 "$CERT_DIR/privkey.pem"
+
             # Configure Git
             git config --global user.name "GitHub Actions"
             git config --global credential.helper store
             echo "https://${{ secrets.GITHUB_TOKEN }}:@github.com" > ~/.git-credentials
             
             # Clone the repository only if it doesn't exist
-            [ -d PurrLay ] || git clone https://${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} PurrLay
-            cd PurrLay
+            [ -d $REPO_DIR ] || git clone https://${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $REPO_DIR
+            cd $REPO_DIR
             
             # Reset and clean repository
             git reset --hard @{u}
             git clean -df
             git pull
             
-            # Stop existing service and build the project
-            sudo killall -9 PurrBalancer || true
-            cd PurrBalancer
+            # Stop existing service
+            sudo killall -9 $SERVICE_NAME || true
+            if pgrep -x "$SERVICE_NAME" > /dev/null; then
+                echo "Failed to stop existing service!"
+                exit 1
+            fi
+            
+            # Build the project
+            cd $SERVICE_NAME
             dotnet build --property:Configuration=Release
             
-            # Start the service
-            sudo nohup ./bin/Release/net8.0/PurrBalancer > /dev/null 2>&1 &
-            exit
+            # Start the application with HTTPS
+            CERT_PATH="$CERT_DIR/fullchain.pem"
+            KEY_PATH="$CERT_DIR/privkey.pem"
+            echo "Starting $SERVICE_NAME with HTTPS..."
+            sudo nohup dotnet ./bin/Release/net8.0/$SERVICE_NAME \
+              --urls "http://*:80;https://*:443" \
+              --cert "$CERT_PATH" \
+              --key "$KEY_PATH" > /dev/null 2>&1 &
