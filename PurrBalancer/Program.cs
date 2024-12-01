@@ -58,8 +58,22 @@ internal static class Program
         }
         
         bool https = !string.IsNullOrEmpty(certPath) && !string.IsNullOrEmpty(keyPath);
+        
+        if (https && !File.Exists(certPath))
+        {
+            Console.WriteLine("Certificate file not found");
+            return;
+        }
+        
+        if (https && !File.Exists(keyPath))
+        {
+            Console.WriteLine("Key file not found");
+            return;
+        }
 
-        var webserver = new Webserver("*", 8080, https, certPath, keyPath, HandleIncomingConnections);
+        var webserver = new Webserver(https ? "purrbalancer.riten.dev" : "*", 
+            8080, https, certPath, keyPath, HandleIncomingConnections);
+        
         webserver.Start();
 
         Console.ReadKey();
