@@ -1,5 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
-using WatsonWebserver.Core;
+﻿using HttpServerLite;
+using Newtonsoft.Json.Linq;
 
 namespace PurrBalancer;
 
@@ -21,12 +21,12 @@ public static class HTTPRestAPI
         }
     ];
     
-    public static JObject OnRequest(HttpRequestBase req)
+    public static JObject OnRequest(HttpRequest req)
     {
         if (req.Url == null)
             throw new Exception("Invalid URL");
 
-        string path = req.Url.RawWithoutQuery;
+        string path = req.Url.WithoutQuery;
 
         switch (path)
         {

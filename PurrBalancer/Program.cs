@@ -1,13 +1,12 @@
 ﻿using System.Text;
+using HttpServerLite;
 using Newtonsoft.Json;
-using WatsonWebserver.Core;
-using Webserver = WatsonWebserver.Webserver;
 
 namespace PurrBalancer;
 
 internal static class Program
 {
-    static async Task HandleIncomingConnections(HttpContextBase ctx)
+    static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url}");
         
@@ -26,7 +25,7 @@ internal static class Program
             resp.ContentType = "application/json";
             resp.StatusCode = 200;
             resp.ContentLength = data.LongLength;
-            await resp.Send(data);
+            await resp.SendAsync(data);
         }
         catch (Exception e)
         {
@@ -36,7 +35,7 @@ internal static class Program
             resp.StatusCode = 500;
             resp.ContentType = "text/plain";
             resp.ContentLength = data.LongLength;
-            await resp.Send(data);
+            await resp.SendAsync(data);
         }
     }
     
@@ -70,15 +69,8 @@ internal static class Program
         var host = https ? "purrbalancer.riten.dev" : "localhost";
         const int _Port = 8080;
         
-        var settings = new WebserverSettings(host, _Port)
-        {
-            Ssl =
-            {
-                Enable = https,
-                PfxCertificateFile = certPath,
-                PfxCertificatePassword = keyPath
-            }
-        };
+        var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
+        server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
 
@@ -88,7 +80,6 @@ internal static class Program
             Console.WriteLine($"Using password: {keyPath}");
         }
         
-        var server = new Webserver(settings, HandleIncomingConnections);
         server.Start();
         
         new ManualResetEvent(false).WaitOne();
