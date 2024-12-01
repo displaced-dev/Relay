@@ -25,20 +25,16 @@ jobs:
             SERVICE_NAME="PurrBalancer"
             DOMAIN="purrbalancer.riten.dev"
             REPO_DIR="PurrLay"
+            CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
+            PFX_CERT="$CERT_DIR/fullchain.pfx"
+            CERT_PASSWORD="YourSecurePasswordHere"
 
             # Update and install dependencies
             apt-get update
-            apt-get install -y dotnet-sdk-8.0 certbot
+            apt-get install -y dotnet-sdk-8.0 certbot openssl
 
             # Restart Certbot timer to ensure renewal works
             systemctl restart certbot.timer
-            
-            # Debugging: Check DOMAIN value
-            echo "Using DOMAIN: $DOMAIN"
-            
-            # Configure certificate paths
-            CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
-            KEY_DIR="/etc/letsencrypt/live/$DOMAIN"
             
             # Obtain a Let's Encrypt SSL certificate
             if [ ! -d "$CERT_DIR" ]; then
@@ -53,16 +49,29 @@ jobs:
             fi
             
             # Set certificate permissions
-            chmod 644 "$CERT_DIR/fullchain.pem"
             chmod 600 "$CERT_DIR/privkey.pem"
+            chmod 644 "$CERT_DIR/fullchain.pem"
 
-            # Stop existing service
-            sudo killall -9 $SERVICE_NAME || true
-            
+            # Convert PEM files to PFX format
+            echo "Converting PEM files to PFX format..."
+            openssl pkcs12 -export \
+              -inkey "$CERT_DIR/privkey.pem" \
+              -in "$CERT_DIR/fullchain.pem" \
+              -out "$PFX_CERT" \
+              -password pass:$CERT_PASSWORD
+
+            if [ $? -ne 0 ]; then
+              echo "Failed to convert PEM to PFX!"
+              exit 1
+            fi
+
+            # Debugging: Check generated PFX file
+            ls -l "$PFX_CERT"
+
             # Delete the repository directory if it exists
             if [ -d "$REPO_DIR" ]; then
               echo "Deleting existing repository directory: $REPO_DIR"
-            rm -rf $REPO_DIR
+              rm -rf $REPO_DIR
             fi
             
             # Clone the repository
@@ -79,10 +88,8 @@ jobs:
             dotnet build --property:Configuration=Release
             
             # Start the application with HTTPS
-            CERT_PATH="$CERT_DIR/fullchain.pem"
-            KEY_PATH="$CERT_DIR/privkey.pem"
             echo "Starting $SERVICE_NAME with HTTPS..."
-            sudo nohup ./bin/Release/net8.0/$SERVICE_NAME \
+            sudo nohup dotnet ./bin/Release/net8.0/$SERVICE_NAME \
               --urls "https://*:8080" \
-              --cert "$CERT_PATH" \
-              --key "$KEY_PATH" > /dev/null 2>&1 &
+              --cert "$PFX_CERT" \
+              --key "$CERT_PASSWORD" > /dev/null 2>&1 &

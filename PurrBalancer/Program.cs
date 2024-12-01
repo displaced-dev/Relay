@@ -70,17 +70,11 @@ internal static class Program
         var host = https ? "purrbalancer.riten.dev" : "localhost";
         const int _Port = 8080;
         
-        X509Certificate2? cert = null;
-        
-        if (https)
-            cert = new X509Certificate2(certPath, keyPath);
-
         var settings = new WebserverSettings(host, _Port)
         {
             Ssl =
             {
                 Enable = https,
-                SslCertificate = cert,
                 PfxCertificateFile = certPath,
                 PfxCertificatePassword = keyPath,
                 AcceptInvalidAcertificates = true
@@ -88,13 +82,6 @@ internal static class Program
         };
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-
-        if (https)
-        {
-            Console.WriteLine("Certificate Path: " + certPath);
-            Console.WriteLine("Key Path: " + keyPath);
-        }
-
         var server = new Webserver(settings, HandleIncomingConnections);
         
         server.Start();
