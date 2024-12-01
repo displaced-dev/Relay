@@ -58,10 +58,6 @@ jobs:
 
             # Stop existing service
             sudo killall -9 $SERVICE_NAME || true
-            if pgrep -x "$SERVICE_NAME" > /dev/null; then
-                echo "Failed to stop existing service!"
-                exit 1
-            fi
             
             # Delete the repository directory if it exists
             if [ -d "$REPO_DIR" ]; then
