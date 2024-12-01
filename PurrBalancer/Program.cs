@@ -1,13 +1,14 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using HttpServerLite;
 using Newtonsoft.Json;
+using WatsonWebserver.Core;
+using Webserver = WatsonWebserver.Webserver;
 
 namespace PurrBalancer;
 
 internal static class Program
 {
-    static async Task HandleIncomingConnections(HttpContext ctx)
+    static async Task HandleIncomingConnections(HttpContextBase ctx)
     {
         // Peel out the requests and response objects
         var req = ctx.Request;
@@ -15,7 +16,6 @@ internal static class Program
         
         resp.Headers.Add("Access-Control-Allow-Methods", "GET");
         resp.Headers.Add("Access-Control-Allow-Origin", "*");
-        req.Headers.Add("Accept-Charset", "utf-8");
         
         try
         {
@@ -25,18 +25,15 @@ internal static class Program
             resp.ContentType = "application/json";
             resp.StatusCode = 200;
             resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
-            resp.Close();
+            await resp.Send(data);
         }
         catch (Exception e)
         {
             var data = Encoding.UTF8.GetBytes(e.Message);
             resp.StatusCode = 500;
-            resp.StatusDescription = "Internal Server Error";
             resp.ContentType = "text/plain";
             resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
-            resp.Close();
+            await resp.Send(data);
         }
     }
     
@@ -78,12 +75,18 @@ internal static class Program
         if (https)
             cert = new X509Certificate2(certPath, keyPath);
 
-        var webserver = new Webserver(host, _Port, HandleIncomingConnections, cert);
-
-        webserver.Settings.Headers.Host = $"{(https ? "https" : "http")}://{host}:{_Port}";
-        Console.WriteLine($"Listening on {webserver.Settings.Headers.Host}");
+        var settings = new WebserverSettings(host, _Port)
+        {
+            Ssl =
+            {
+                Enable = https,
+                SslCertificate = cert
+            }
+        };
         
-        webserver.Start();
+        var server = new Webserver(settings, HandleIncomingConnections);
+        
+        server.Start();
         
         new ManualResetEvent(false).WaitOne();
     }
