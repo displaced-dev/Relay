@@ -77,9 +77,12 @@ internal static class Program
         };
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-        
+
         if (https)
+        {
             Console.WriteLine($"Using PFX Certificate: {certPath}");
+            Console.WriteLine($"Using password: {keyPath}");
+        }
         
         var server = new Webserver(settings, HandleIncomingConnections);
         server.Start();
