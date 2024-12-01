@@ -80,9 +80,13 @@ internal static class Program
             Ssl =
             {
                 Enable = https,
-                SslCertificate = cert
+                SslCertificate = cert,
+                PfxCertificateFile = certPath,
+                PfxCertificatePassword = keyPath
             }
         };
+        
+        Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
         
         var server = new Webserver(settings, HandleIncomingConnections);
         
