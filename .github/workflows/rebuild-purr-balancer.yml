@@ -55,32 +55,28 @@ jobs:
             # Set certificate permissions
             chmod 644 "$CERT_DIR/fullchain.pem"
             chmod 600 "$CERT_DIR/privkey.pem"
-            
-            # Configure Git for SSH
-            eval "$(ssh-agent -s)"
-            ssh-add ~/.ssh/id_rsa
 
-            # Configure Git
-            git config --global user.name "GitHub Actions"
-            git config --global credential.helper store
-            echo "https://${{ secrets.GITHUB_TOKEN }}:@github.com" > ~/.git-credentials
-            
-            # Clone the repository only if it doesn't exist
-            [ -d $REPO_DIR ] || git clone https://${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $REPO_DIR
-            cd $REPO_DIR
-            
-            # Reset and clean repository
-            git reset --hard @{u}
-            git clean -df
-            git pull https://${{ secrets.GITHUB_TOKEN }}:@github.com/${{ github.repository }}
-            git rev-parse HEAD
-            
             # Stop existing service
             sudo killall -9 $SERVICE_NAME || true
             if pgrep -x "$SERVICE_NAME" > /dev/null; then
                 echo "Failed to stop existing service!"
                 exit 1
             fi
+            
+            # Delete the repository directory if it exists
+            if [ -d "$REPO_DIR" ]; then
+              echo "Deleting existing repository directory: $REPO_DIR"
+            rm -rf $REPO_DIR
+            fi
+            
+            # Clone the repository
+            git config --global user.name "GitHub Actions"
+            git config --global credential.helper store
+            echo "https://${{ secrets.GITHUB_TOKEN }}:@github.com" > ~/.git-credentials
+            
+            echo "Cloning the repository..."
+            git clone --depth=1 https://${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} $REPO_DIR
+            cd $REPO_DIR
             
             # Build the project
             cd $SERVICE_NAME
