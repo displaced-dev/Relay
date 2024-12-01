@@ -18,6 +18,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
+            git config --global user.name "Github Actions"
             [ -d ${{ github.repository }} ] || git clone ${{ github.server_url }}/${{ github.repository }} PurrLay
             cd PurrLay
             git reset --hard @{u}
