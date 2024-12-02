@@ -5,7 +5,7 @@ namespace PurrLay;
 
 public static class HTTPRestAPI
 {
-    static readonly WebSockets _server = new(8081);
+    static WebSockets? _server;
     
     public static JObject OnRequest(HttpRequest req)
     {
@@ -32,6 +32,8 @@ public static class HTTPRestAPI
                     throw new Exception($"Bad internal secret, {internalSec.Length}");
                 
                 Lobby.CreateRoom(name, out var secret);
+                
+                _server ??= new WebSockets(8081);
 
                 return new JObject
                 {
