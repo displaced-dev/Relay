@@ -71,7 +71,7 @@ internal static class Program
         }
 
         var host = string.IsNullOrWhiteSpace(domain) ? (https ? "purrbalancer.riten.dev" : "localhost") : domain;
-        const int _Port = 8080;
+        const int _Port = 8081;
         
         var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
         server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
