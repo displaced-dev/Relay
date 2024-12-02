@@ -33,7 +33,7 @@ public static class HTTPRestAPI
                 
                 Lobby.CreateRoom(name, out var secret);
                 
-                _server ??= new WebSockets(8081);
+                _server ??= new WebSockets(6942);
 
                 return new JObject
                 {
