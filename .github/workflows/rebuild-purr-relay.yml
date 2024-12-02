@@ -1,4 +1,4 @@
-name: rebuild-purr-balancer
+name: rebuild-purr-balancer-eu-central
 
 on:
   push:
