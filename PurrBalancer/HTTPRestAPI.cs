@@ -1,5 +1,4 @@
-﻿using System.Net;
-using HttpServerLite;
+﻿using HttpServerLite;
 using Newtonsoft.Json.Linq;
 using HttpMethod = System.Net.Http.HttpMethod;
 
@@ -55,8 +54,6 @@ public static class HTTPRestAPI
         server = default;
         return false;
     }
-    
-    static readonly WebClient _webClient = new ();
     
     public static async Task<JObject> OnRequest(HttpRequest req)
     {
