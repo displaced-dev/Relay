@@ -44,13 +44,6 @@ public static class HTTPRestAPI
             {
                 var name = req.RetrieveHeaderValue("name");
                 var internalSec = req.RetrieveHeaderValue("internal_key_secret");
-
-                string keys = "";
-                foreach (var v in req.Headers.AllKeys)
-                {
-                    keys += v + " ";
-                }
-                throw new Exception($"Keys: {keys}");
                 
                 if (string.IsNullOrWhiteSpace(name))
                     throw new Exception("Missing name");
