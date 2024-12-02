@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy-purrbalancer:
-    uses: ./.github/workflows/reusable-deploy.yml
+    uses: ./.github/workflows/deployer.yml
     with:
       host_ip: "159.69.180.67"
       service_name: "PurrBalancer"
