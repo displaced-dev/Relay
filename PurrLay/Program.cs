@@ -32,7 +32,7 @@ internal static class Program
         catch (Exception e)
         {
             var resp = ctx.Response;
-            var data = Encoding.UTF8.GetBytes(e.Message + "\n" + e.StackTrace);
+            var data = Encoding.UTF8.GetBytes(e.Message);
             
             resp.StatusCode = 500;
             resp.ContentType = "text/plain";
