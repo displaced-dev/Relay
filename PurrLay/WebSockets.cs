@@ -21,7 +21,7 @@ public class WebSockets : IDisposable
     {
         this.port = port;
         
-        var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls13);
+        var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls12);
         _server = new SimpleWebServer(int.MaxValue, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
         _server.Start((ushort)port);
         _server.onConnect += OnClientConnectedToServer;

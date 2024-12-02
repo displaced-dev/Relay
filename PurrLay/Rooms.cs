@@ -4,6 +4,7 @@ public class Room
 {
     public string name;
     public string hostSecret;
+    public string clientSecret;
     public DateTime createdAt;
 }
 
@@ -22,7 +23,13 @@ public static class Lobby
         {
             name = name,
             hostSecret = hostSecret,
+            clientSecret = Guid.NewGuid().ToString().Replace("-", ""),
             createdAt = DateTime.UtcNow
         };
+    }
+
+    public static bool TryGetRoom(string name, out Room? room)
+    {
+        return _room.TryGetValue(name, out room);
     }
 }

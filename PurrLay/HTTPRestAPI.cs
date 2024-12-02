@@ -17,6 +17,25 @@ public static class HTTPRestAPI
         switch (path)
         {
             case "/ping": return new JObject();
+            case "/getJoinDetails":
+            {
+                var name = req.RetrieveHeaderValue("name");
+
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new Exception("Missing name");
+
+                if (_server == null)
+                    throw new Exception("No rooms available");
+                
+                if (!Lobby.TryGetRoom(name, out var room) || room == null)
+                    throw new Exception("Room not found");
+                
+                return new JObject
+                {
+                    ["clientSecret"] = room.clientSecret,
+                    ["port"] = _server.port
+                };
+            }
             case "/allocate_ws":
             {
                 var name = req.RetrieveHeaderValue("name");
