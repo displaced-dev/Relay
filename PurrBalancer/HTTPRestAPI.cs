@@ -1,4 +1,5 @@
-﻿using HttpServerLite;
+﻿using System.Text;
+using HttpServerLite;
 using Newtonsoft.Json.Linq;
 using HttpMethod = System.Net.Http.HttpMethod;
 
@@ -87,9 +88,13 @@ public static class HTTPRestAPI
                 
                 var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
                     $"https://{server.host}:{server.restPort}/allocate_ws"));
-                
+
                 if (!resp.IsSuccessStatusCode)
-                    throw new Exception(resp.ReasonPhrase);
+                {
+                    var content = resp.Content.ReadAsByteArrayAsync();
+                    var contentStr = Encoding.UTF8.GetString(content.Result);
+                    throw new Exception(contentStr);
+                }
                 
                 var respStr = await resp.Content.ReadAsStringAsync();
                 
