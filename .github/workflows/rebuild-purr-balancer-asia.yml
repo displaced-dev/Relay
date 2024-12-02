@@ -1,4 +1,4 @@
-name: rebuild-purr-balancer-us-east
+name: rebuild-purr-balancer-asia
 
 on:
   push:
