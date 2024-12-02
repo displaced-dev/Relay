@@ -1,5 +1,7 @@
-﻿using HttpServerLite;
+﻿using System.Text;
+using HttpServerLite;
 using Newtonsoft.Json.Linq;
+using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrLay;
 
@@ -7,6 +9,12 @@ public static class HTTPRestAPI
 {
     static WebSockets? _server;
     private static string? _region;
+    
+#if DEBUG
+    const string PROTOCOL = "http";
+#else
+    const string PROTOCOL = "https";
+#endif
     
     public static async Task RegisterRoom(string roomName)
     {
@@ -16,10 +24,15 @@ public static class HTTPRestAPI
         client.DefaultRequestHeaders.Add("region", _region);
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
         
-        var response = await client.PostAsync("https://purrbalancer.riten.dev:8080/registerRoom", null);
+        var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
+            $"{PROTOCOL}://purrbalancer.riten.dev:8080/registerRoom"));
         
         if (!response.IsSuccessStatusCode)
-            throw new Exception("Failed to register room");
+        {
+            var content = response.Content.ReadAsByteArrayAsync();
+            var contentStr = Encoding.UTF8.GetString(content.Result);
+            throw new Exception(contentStr);
+        }
     }
     
     public static async Task unegisterRoom(string roomName)
@@ -29,10 +42,15 @@ public static class HTTPRestAPI
         client.DefaultRequestHeaders.Add("name", roomName);
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
         
-        var response = await client.PostAsync("https://purrbalancer.riten.dev:8080/runegisterRoom", null);
+        var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
+            $"{PROTOCOL}://purrbalancer.riten.dev:8080/unregisterRoom"));
         
         if (!response.IsSuccessStatusCode)
-            throw new Exception("Failed to register room");
+        {
+            var content = response.Content.ReadAsByteArrayAsync();
+            var contentStr = Encoding.UTF8.GetString(content.Result);
+            throw new Exception(contentStr);
+        }
     }
     
     [Serializable]
