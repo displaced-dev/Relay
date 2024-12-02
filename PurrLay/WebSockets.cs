@@ -287,12 +287,12 @@ public class WebSockets : IDisposable
             if (room.clientSecret == auth.clientSecret)
             {
                 _clientToRoom.Add(connId, room.roomId);
-                isHost = true;
             }
             else if (room.hostSecret == auth.clientSecret)
             {
                 _clientToRoom.Add(connId, room.roomId);
                 _roomToHost.Add(room.roomId, connId);
+                isHost = true;
             }
             else
             {
