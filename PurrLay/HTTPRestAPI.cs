@@ -43,7 +43,7 @@ public static class HTTPRestAPI
             case "/allocate_ws":
             {
                 var name = req.RetrieveHeaderValue("name");
-                var internalSec = req.RetrieveHeaderValue("internal");
+                var internalSec = req.RetrieveHeaderValue("internal_key_secret");
                 
                 if (string.IsNullOrWhiteSpace(name))
                     throw new Exception("Missing name");

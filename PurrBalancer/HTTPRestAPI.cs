@@ -84,7 +84,7 @@ public static class HTTPRestAPI
                 
                 _webClient.Headers.Clear();
                 _webClient.Headers.Add("name", name);
-                _webClient.Headers.Add("internal", Program.SECRET_INTERNAL);
+                _webClient.Headers.Add("internal_key_secret", Program.SECRET_INTERNAL);
                 
                 var resp = _webClient.DownloadString($"https://{server.host}:{server.restPort}/allocate_ws");
                 
