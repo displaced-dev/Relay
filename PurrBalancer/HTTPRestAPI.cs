@@ -104,7 +104,10 @@ public static class HTTPRestAPI
                 if (!_roomToRegion.TryAdd(name, region))
                     throw new Exception("Room already registered");
 
-                break;
+                return new JObject
+                {
+                    ["status"] = "ok"
+                };
             }
             case "/unregisterRoom":
             {
@@ -117,7 +120,10 @@ public static class HTTPRestAPI
                 if (!_roomToRegion.Remove(name, out _))
                     throw new Exception("Room not found");
 
-                break;
+                return new JObject
+                {
+                    ["status"] = "ok"
+                };
             }
             case "/join":
             {
