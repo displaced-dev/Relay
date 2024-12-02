@@ -44,9 +44,12 @@ public static class HTTPRestAPI
             {
                 var name = req.RetrieveHeaderValue("name");
                 var internalSec = req.RetrieveHeaderValue("internal");
+                
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new Exception("Missing name");
 
-                if (internalSec != Program.SECRET_INTERNAL || name == null)
-                    throw new Exception("Missing region or secret");
+                if (!string.Equals(internalSec, Program.SECRET_INTERNAL))
+                    throw new Exception($"Bad internal secret, {internalSec.Length}");
                 
                 Lobby.CreateRoom(name, out var secret);
 
