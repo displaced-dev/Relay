@@ -47,8 +47,15 @@ public static class HTTPRestAPI
 
                 if (region == null || secret == null)
                     throw new Exception("Missing region or secret");
-                
-                return new JObject($"{region}:{secret} from relay server");
+
+                var response = new JObject
+                {
+                    ["region"] = region,
+                    ["secret"] = secret,
+                    ["internal"] = Program.SECRET_INTERNAL
+                };
+
+                return response;
             }
         }
         
