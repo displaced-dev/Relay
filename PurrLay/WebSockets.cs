@@ -16,7 +16,7 @@ public class WebSockets : IDisposable
 {
     private SimpleWebServer? _server;
     
-    readonly TcpConfig _tcpConfig = new (noDelay: true, sendTimeout: 5000, receiveTimeout: 20000);
+    readonly TcpConfig _tcpConfig = new (noDelay: true, sendTimeout: int.MaxValue, receiveTimeout: int.MaxValue);
     
     private readonly Dictionary<int, ulong> _clientToRoom = new();
     private readonly Dictionary<ulong, List<int>> _roomToClients = new();
