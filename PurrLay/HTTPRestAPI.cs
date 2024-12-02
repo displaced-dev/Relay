@@ -47,6 +47,9 @@ public static class HTTPRestAPI
                 
                 if (string.IsNullOrWhiteSpace(name))
                     throw new Exception("Missing name");
+                
+                if (string.IsNullOrWhiteSpace(internalSec))
+                    throw new Exception("Bad internal secret, -1");
 
                 if (!string.Equals(internalSec, Program.SECRET_INTERNAL))
                     throw new Exception($"Bad internal secret, {internalSec.Length}");
