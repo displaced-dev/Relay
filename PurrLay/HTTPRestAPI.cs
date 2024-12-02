@@ -33,13 +33,11 @@ public static class HTTPRestAPI
                 
                 Lobby.CreateRoom(name, out var secret);
 
-                var response = new JObject
+                return new JObject
                 {
                     ["secret"] = secret,
                     ["port"] = _server.port
                 };
-
-                return response;
             }
         }
         

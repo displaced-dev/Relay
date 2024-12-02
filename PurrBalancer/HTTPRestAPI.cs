@@ -95,10 +95,16 @@ public static class HTTPRestAPI
                     var contentStr = Encoding.UTF8.GetString(content.Result);
                     throw new Exception(contentStr);
                 }
-                
-                var respStr = await resp.Content.ReadAsStringAsync();
-                
-                return JObject.Parse(respStr);
+
+                try
+                {
+                    var respStr = await resp.Content.ReadAsStringAsync();
+                    return JObject.Parse(respStr);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception("Invalid response " + e.Message + "\n" + e.StackTrace);
+                }
             }
         }
         
