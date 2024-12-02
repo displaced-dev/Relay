@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using HttpServerLite;
 using Newtonsoft.Json.Linq;
+using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrBalancer;
 
@@ -57,7 +58,7 @@ public static class HTTPRestAPI
     
     static readonly WebClient _webClient = new ();
     
-    public static JObject OnRequest(HttpRequest req)
+    public static async Task<JObject> OnRequest(HttpRequest req)
     {
         if (req.Url == null)
             throw new Exception("Invalid URL");
@@ -82,13 +83,15 @@ public static class HTTPRestAPI
                 if (string.IsNullOrEmpty(name))
                     throw new Exception("Invalid name");
                 
-                _webClient.Headers.Clear();
-                _webClient.Headers.Add("name", name);
-                _webClient.Headers.Add("internal_key_secret", Program.SECRET_INTERNAL);
+                HttpClient client = new();
                 
-                var resp = _webClient.DownloadString($"https://{server.host}:{server.restPort}/allocate_ws");
+                client.DefaultRequestHeaders.Add("name", name);
+                client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
                 
-                return JObject.Parse(resp);
+                var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, $"https://{server.host}:{server.restPort}/allocate_ws"));
+                var respStr = await resp.Content.ReadAsStringAsync();
+                
+                return JObject.Parse(respStr);
             }
         }
         

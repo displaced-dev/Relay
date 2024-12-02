@@ -21,7 +21,7 @@ internal static class Program
             resp.Headers.Add("Access-Control-Allow-Methods", "GET");
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
             
-            var response = HTTPRestAPI.OnRequest(req);
+            var response = await HTTPRestAPI.OnRequest(req);
             var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
             resp.ContentType = "application/json";
