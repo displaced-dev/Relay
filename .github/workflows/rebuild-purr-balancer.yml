@@ -1,4 +1,4 @@
-name: Deploy PurrBalancer
+name: Deploy PurrEU1
 
 on:
   push:
