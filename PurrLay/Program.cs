@@ -10,8 +10,8 @@ internal static class Program
 
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
-        Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url}");
-        
+        Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
+
         try
         {
             // Peel out the requests and response objects

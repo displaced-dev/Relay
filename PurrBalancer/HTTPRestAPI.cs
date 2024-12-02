@@ -16,6 +16,19 @@ public struct RelayServer
 
 public static class HTTPRestAPI
 {
+#if DEBUG
+    private static readonly RelayServer[] _relayServers =
+    [
+        new()
+        {
+            host = "localhost",
+            restPort = 8081,
+            udpPort = 8082,
+            webSocketsPort = 8083,
+            region = "local"
+        }
+    ];
+#else
     static readonly RelayServer[] _relayServers =
     [
         new() {
@@ -40,6 +53,7 @@ public static class HTTPRestAPI
             region = "ap-southeast"
         }
     ];
+#endif
     
     static bool TryGetServer(string region, out RelayServer server)
     {
@@ -86,8 +100,14 @@ public static class HTTPRestAPI
                 client.DefaultRequestHeaders.Add("name", name);
                 client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
                 
+#if DEBUG
+                const string PROTOCOL = "http";
+#else
+                const string PROTOCOL = "https";
+#endif
+                
                 var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
-                    $"https://{server.host}:{server.restPort}/allocate_ws"));
+                    $"{PROTOCOL}://{server.host}:{server.restPort}/allocate_ws"));
 
                 if (!resp.IsSuccessStatusCode)
                 {
