@@ -6,7 +6,9 @@ namespace PurrBalancer;
 internal struct RelayServer
 {
     public string host;
-    public int port;
+    public int restPort;
+    public int udpPort;
+    public int webSocketsPort;
     public string region;
 }
 
@@ -15,9 +17,25 @@ public static class HTTPRestAPI
     static readonly RelayServer[] _relayServers =
     [
         new() {
-            host = "localhost",
-            port = 8080,
-            region = "eu"
+            host = "eu1.purrlay.riten.dev",
+            restPort = 8081,
+            udpPort = 8082,
+            webSocketsPort = 8083,
+            region = "eu-central"
+        },
+        new() {
+            host = "us-east.purrlay.riten",
+            restPort = 8081,
+            udpPort = 8082,
+            webSocketsPort = 8083,
+            region = "us-east"
+        },
+        new() {
+            host = "asia.purrlay.riten.dev",
+            restPort = 8081,
+            udpPort = 8082,
+            webSocketsPort = 8083,
+            region = "ap-southeast"
         }
     ];
     
