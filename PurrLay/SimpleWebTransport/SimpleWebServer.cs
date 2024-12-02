@@ -6,10 +6,10 @@ namespace JamesFrowen.SimpleWeb
 {
     public class SimpleWebServer
     {
-        public event Action<int> onConnect;
-        public event Action<int> onDisconnect;
-        public event Action<int, ArraySegment<byte>> onData;
-        public event Action<int, Exception> onError;
+        public event Action<int>? onConnect;
+        public event Action<int>? onDisconnect;
+        public event Action<int, ArraySegment<byte>>? onData;
+        public event Action<int, Exception>? onError;
 
         readonly int maxMessagesPerTick;
         readonly WebSocketServer server;

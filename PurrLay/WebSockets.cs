@@ -5,7 +5,7 @@ namespace PurrLay;
 
 public class WebSockets : IDisposable
 {
-    private readonly SimpleWebServer _server;
+    private SimpleWebServer? _server;
     
     readonly TcpConfig _tcpConfig = new (noDelay: true, sendTimeout: 5000, receiveTimeout: 20000);
     
@@ -16,17 +16,39 @@ public class WebSockets : IDisposable
     public event Action? onClosed;
     
     public int port { get; private set; }
+
+    private Thread? _thread;
     
     public WebSockets(int port)
     {
         this.port = port;
-        
+        _thread = new Thread(Start);
+        _thread.Start();
+    }
+
+    private void Start()
+    {
         var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls12);
         _server = new SimpleWebServer(int.MaxValue, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
         _server.Start((ushort)port);
         _server.onConnect += OnClientConnectedToServer;
         _server.onDisconnect += OnClientDisconnectedFromServer;
         _server.onData += OnServerReceivedData;
+
+        while (_server.Active)
+        {
+            try
+            {
+                Thread.Sleep(100);
+                _server.ProcessMessageQueue();
+            }
+            catch
+            {
+                break;
+            }
+        }
+        
+        Dispose();
     }
 
     private void OnClientConnectedToServer(int connId)
@@ -36,28 +58,22 @@ public class WebSockets : IDisposable
 
     private void OnClientDisconnectedFromServer(int connId)
     {
-        if (_hostConnId == connId)
-        {
-            Dispose();
-            return;
-        }
-        
         _clientConnIds.Remove(connId);
     }
 
     private void OnServerReceivedData(int connId, ArraySegment<byte> data)
     {
-        if (data.Array == null)
+        /*if (data.Array == null)
             return;
         
         if (!_hostConnId.HasValue)
         {
-            /*if (data.Count != _hostSecret.Length)
+            if (data.Count != _hostSecret.Length)
                 return;
             
             var secret = Encoding.UTF8.GetString(data.Array, data.Offset, data.Count);
             if (secret != _hostSecret)
-                return;*/
+                return;
             
             _hostConnId = connId;
             _clientConnIds.Remove(connId);
@@ -67,15 +83,15 @@ public class WebSockets : IDisposable
         
         if (connId == _hostConnId)
              _server.SendAll(_clientConnIds, data);
-        else _server.SendOne(_hostConnId.Value, data);
+        else _server.SendOne(_hostConnId.Value, data);*/
     }
 
     public void Dispose()
     {
-        if (!_server.Active)
+        if (_server?.Active == false)
             return;
         
-        _server.Stop();
+        _server?.Stop();
         onClosed?.Invoke();
     }
 }
