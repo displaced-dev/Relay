@@ -71,17 +71,20 @@ public static class HTTPRestAPI
             case "/allocate_ws":
             {
                 var region = req.RetrieveHeaderValue("region");
-                var secret = req.RetrieveHeaderValue("secret");
+                var name = req.RetrieveHeaderValue("name");
                 
-                if (string.IsNullOrEmpty(region) || string.IsNullOrEmpty(secret))
+                if (string.IsNullOrEmpty(region))
                     throw new Exception("Invalid headers");
                 
                 if (!TryGetServer(region, out var server))
                     throw new Exception("Invalid region");
                 
+                if (string.IsNullOrEmpty(name))
+                    throw new Exception("Invalid name");
+                
                 _webClient.Headers.Clear();
-                _webClient.Headers.Add("secret", secret);
-                _webClient.Headers.Add("region", region);
+                _webClient.Headers.Add("name", name);
+                _webClient.Headers.Add("internal", Program.SECRET_INTERNAL);
                 
                 var resp = _webClient.DownloadString($"https://{server.host}:{server.restPort}/allocate_ws");
                 

@@ -42,17 +42,17 @@ public static class HTTPRestAPI
             case "/ping": return new JObject();
             case "/allocate_ws":
             {
-                var region = req.RetrieveHeaderValue("region");
-                var secret = req.RetrieveHeaderValue("secret");
+                var name = req.RetrieveHeaderValue("name");
+                var internalSec = req.RetrieveHeaderValue("internal");
 
-                if (region == null || secret == null)
+                if (internalSec != Program.SECRET_INTERNAL || name == null)
                     throw new Exception("Missing region or secret");
+                
+                Lobby.CreateRoom(name, out var secret);
 
                 var response = new JObject
                 {
-                    ["region"] = region,
-                    ["secret"] = secret,
-                    ["internal"] = Program.SECRET_INTERNAL
+                    ["secret"] = secret
                 };
 
                 return response;
