@@ -1,5 +1,4 @@
 ﻿using System.Security.Authentication;
-using System.Text;
 using JamesFrowen.SimpleWeb;
 
 namespace PurrLay;
@@ -12,20 +11,22 @@ public class WebSockets : IDisposable
     
     private int? _hostConnId;
     
-    private readonly List<int> _clientConnIds = new ();
-
-    private readonly string _hostSecret;
+    private readonly List<int> _clientConnIds = [];
+    
     public event Action? onClosed;
     
-    public WebSockets(string hostSecret, int port, string certPath, string certPass)
+    public int port { get; private set; }
+    
+    public WebSockets(int port)
     {
-        var sslConfig = new SslConfig(true, certPath, certPass, SslProtocols.Tls13);
-        _server = new SimpleWebServer(5000, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
+        this.port = port;
+        
+        var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls13);
+        _server = new SimpleWebServer(int.MaxValue, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
         _server.Start((ushort)port);
         _server.onConnect += OnClientConnectedToServer;
         _server.onDisconnect += OnClientDisconnectedFromServer;
         _server.onData += OnServerReceivedData;
-        _hostSecret = hostSecret;
     }
 
     private void OnClientConnectedToServer(int connId)
@@ -51,12 +52,12 @@ public class WebSockets : IDisposable
         
         if (!_hostConnId.HasValue)
         {
-            if (data.Count != _hostSecret.Length)
+            /*if (data.Count != _hostSecret.Length)
                 return;
             
             var secret = Encoding.UTF8.GetString(data.Array, data.Offset, data.Count);
             if (secret != _hostSecret)
-                return;
+                return;*/
             
             _hostConnId = connId;
             _clientConnIds.Remove(connId);

@@ -5,30 +5,7 @@ namespace PurrLay;
 
 public static class HTTPRestAPI
 {
-    static readonly Dictionary<ushort, Webserver> _servers = new();
-    
-    static ushort _nextPort = 8081;
-
-    static ushort GetNextPort()
-    {
-        const int maxAttempts = ushort.MaxValue - 8081; // Total available port range
-        int attempts = 0;
-        
-        lock (_servers)
-        {
-            while (_servers.ContainsKey(_nextPort))
-            {
-                _nextPort++;
-                
-                if (_nextPort == ushort.MaxValue)
-                    _nextPort = 8081;
-                
-                if (++attempts > maxAttempts)
-                    throw new InvalidOperationException("No available ports.");
-            }
-            return _nextPort;
-        }
-    }
+    static readonly WebSockets _server = new(8081);
     
     public static JObject OnRequest(HttpRequest req)
     {
@@ -58,7 +35,8 @@ public static class HTTPRestAPI
 
                 var response = new JObject
                 {
-                    ["secret"] = secret
+                    ["secret"] = secret,
+                    ["port"] = _server.port
                 };
 
                 return response;
