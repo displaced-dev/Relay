@@ -35,7 +35,7 @@ public class WebSockets : IDisposable
         _server.onDisconnect += OnClientDisconnectedFromServer;
         _server.onData += OnServerReceivedData;
 
-        while (_server.Active)
+        while (true)
         {
             try
             {
