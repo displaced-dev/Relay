@@ -5,6 +5,31 @@ namespace PurrLay;
 
 public static class HTTPRestAPI
 {
+    static readonly Dictionary<ushort, Webserver> _servers = new();
+    
+    static ushort _nextPort = 8081;
+
+    static ushort GetNextPort()
+    {
+        const int maxAttempts = ushort.MaxValue - 8081; // Total available port range
+        int attempts = 0;
+        
+        lock (_servers)
+        {
+            while (_servers.ContainsKey(_nextPort))
+            {
+                _nextPort++;
+                
+                if (_nextPort == ushort.MaxValue)
+                    _nextPort = 8081;
+                
+                if (++attempts > maxAttempts)
+                    throw new InvalidOperationException("No available ports.");
+            }
+            return _nextPort;
+        }
+    }
+    
     public static JObject OnRequest(HttpRequest req)
     {
         if (req.Url == null)
@@ -15,6 +40,16 @@ public static class HTTPRestAPI
         switch (path)
         {
             case "/ping": return new JObject();
+            case "/allocate_ws":
+            {
+                var region = req.RetrieveHeaderValue("region");
+                var secret = req.RetrieveHeaderValue("secret");
+
+                if (region == null || secret == null)
+                    throw new Exception("Missing region or secret");
+                
+                return new JObject($"{region}:{secret} from relay server");
+            }
         }
         
         throw new Exception("Invalid path");

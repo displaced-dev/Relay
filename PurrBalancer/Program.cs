@@ -6,6 +6,8 @@ namespace PurrBalancer;
 
 internal static class Program
 {
+    public const string SECRET_INTERNAL = "XBf5mFfcCLmTuuCRTT8WbeymWbt5yyi3fcVq2Tu0WO924ZWkWxZXV337LzYLeg2F";
+    
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url}");
@@ -39,11 +41,11 @@ internal static class Program
         }
     }
     
+    static string certPath = string.Empty;
+    static string keyPath = string.Empty;
+    
     static void Main(string[] args)
     {
-        string certPath = string.Empty;
-        string keyPath = string.Empty;
-        
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
