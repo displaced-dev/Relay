@@ -85,7 +85,12 @@ public static class HTTPRestAPI
                 client.DefaultRequestHeaders.Add("name", name);
                 client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
                 
-                var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, $"https://{server.host}:{server.restPort}/allocate_ws"));
+                var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
+                    $"https://{server.host}:{server.restPort}/allocate_ws"));
+                
+                if (!resp.IsSuccessStatusCode)
+                    throw new Exception(resp.ReasonPhrase);
+                
                 var respStr = await resp.Content.ReadAsStringAsync();
                 
                 return JObject.Parse(respStr);
