@@ -1,0 +1,17 @@
+name: Deploy PurrBalancer
+
+on:
+  push:
+    branches: ['main']
+    paths: ['PurrBalancer/**']
+  workflow_dispatch:
+
+jobs:
+  deploy-purrbalancer:
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      host_ip: "159.69.180.67"
+      service_name: "PurrBalancer"
+      domain: "purrbalancer.riten.dev"
+      repo_dir: "PurrLay"
+      cert_password: "YourSecurePasswordHere"
