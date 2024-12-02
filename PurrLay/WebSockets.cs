@@ -251,7 +251,7 @@ public class WebSockets : IDisposable
                 buffer[3] = (byte)(connId >> 16);
                 buffer[4] = (byte)(connId >> 24);
                 
-                Buffer.BlockCopy(data.Array, data.Offset, buffer, 1, data.Count);
+                Buffer.BlockCopy(data.Array, data.Offset, buffer, 1 + 4, data.Count);
                 _server?.SendOne(host, buffer);
             }
         }
