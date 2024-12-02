@@ -93,6 +93,6 @@ jobs:
             # Start the application with HTTPS
             echo "Starting $SERVICE_NAME with HTTPS..."
             sudo nohup ./bin/Release/net8.0/$SERVICE_NAME \
-              --urls "https://*:8080" \
+              --url "$DOMAIN" \
               --cert "$PFX_CERT" \
               --key "$CERT_PASSWORD" > /dev/null 2>&1 &

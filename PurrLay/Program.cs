@@ -43,6 +43,7 @@ internal static class Program
     {
         string certPath = string.Empty;
         string keyPath = string.Empty;
+        string domain = string.Empty;
         
         for (int i = 0; i < args.Length; i++)
         {
@@ -53,6 +54,9 @@ internal static class Program
                     break;
                 case "--key" when i + 1 < args.Length:
                     keyPath = args[++i];
+                    break;
+                case "--url" when i + 1 < args.Length:
+                    domain = args[++i];
                     break;
             }
         }
@@ -66,7 +70,7 @@ internal static class Program
                 return;
         }
 
-        var host = https ? "purrbalancer.riten.dev" : "localhost";
+        var host = string.IsNullOrWhiteSpace(domain) ? (https ? "purrbalancer.riten.dev" : "localhost") : domain;
         const int _Port = 8080;
         
         var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
