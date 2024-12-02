@@ -6,8 +6,43 @@ namespace PurrLay;
 public static class HTTPRestAPI
 {
     static WebSockets? _server;
+    private static string? _region;
     
-    public static JObject OnRequest(HttpRequest req)
+    public static async Task RegisterRoom(string roomName)
+    {
+        using HttpClient client = new();
+                
+        client.DefaultRequestHeaders.Add("name", roomName);
+        client.DefaultRequestHeaders.Add("region", _region);
+        client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
+        
+        var response = await client.PostAsync("https://purrbalancer.riten.dev:8080/registerRoom", null);
+        
+        if (!response.IsSuccessStatusCode)
+            throw new Exception("Failed to register room");
+    }
+    
+    public static async Task unegisterRoom(string roomName)
+    {
+        using HttpClient client = new();
+                
+        client.DefaultRequestHeaders.Add("name", roomName);
+        client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
+        
+        var response = await client.PostAsync("https://purrbalancer.riten.dev:8080/runegisterRoom", null);
+        
+        if (!response.IsSuccessStatusCode)
+            throw new Exception("Failed to register room");
+    }
+    
+    [Serializable]
+    internal struct ClientJoinInfo
+    {
+        public string? secret;
+        public int port;
+    }
+    
+    public static async Task<JObject> OnRequest(HttpRequest req)
     {
         if (req.Url == null)
             throw new Exception("Invalid URL");
@@ -29,20 +64,24 @@ public static class HTTPRestAPI
                 
                 if (!Lobby.TryGetRoom(name, out var room) || room == null)
                     throw new Exception("Room not found");
-                
-                return new JObject
+
+                return JObject.FromObject(new ClientJoinInfo
                 {
-                    ["clientSecret"] = room.clientSecret,
-                    ["port"] = _server.port
-                };
+                    port = _server.port,
+                    secret = room.clientSecret
+                });
             }
             case "/allocate_ws":
             {
                 var name = req.RetrieveHeaderValue("name");
+                var region = req.RetrieveHeaderValue("region");
                 var internalSec = req.RetrieveHeaderValue("internal_key_secret");
                 
                 if (string.IsNullOrWhiteSpace(name))
                     throw new Exception("Missing name");
+                
+                if (string.IsNullOrWhiteSpace(region))
+                    throw new Exception("Missing region");
                 
                 if (string.IsNullOrWhiteSpace(internalSec))
                     throw new Exception("Bad internal secret, -1");
@@ -50,7 +89,9 @@ public static class HTTPRestAPI
                 if (!string.Equals(internalSec, Program.SECRET_INTERNAL))
                     throw new Exception($"Bad internal secret, {internalSec.Length}");
                 
-                Lobby.CreateRoom(name, out var secret);
+                _region ??= region;
+                
+                var secret = await Lobby.CreateRoom(name);
                 
                 _server ??= new WebSockets(6942);
 

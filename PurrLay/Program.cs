@@ -21,7 +21,7 @@ internal static class Program
             resp.Headers.Add("Access-Control-Allow-Methods", "GET");
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
             
-            var response = HTTPRestAPI.OnRequest(req);
+            var response = await HTTPRestAPI.OnRequest(req);
             var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
             resp.ContentType = "application/json";
@@ -43,6 +43,7 @@ internal static class Program
     
     public static string certPath = string.Empty;
     public static string keyPath = string.Empty;
+    public static string host = string.Empty;
     
     static void Main(string[] args)
     {
@@ -73,7 +74,7 @@ internal static class Program
                 return;
         }
 
-        var host = string.IsNullOrWhiteSpace(domain) ? (https ? "purrbalancer.riten.dev" : "localhost") : domain;
+        host = string.IsNullOrWhiteSpace(domain) ? https ? "purrbalancer.riten.dev" : "localhost" : domain;
         const int _Port = 8081;
         
         var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 

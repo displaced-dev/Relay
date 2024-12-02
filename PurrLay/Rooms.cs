@@ -16,12 +16,14 @@ public static class Lobby
     
     static ulong _roomIdCounter;
     
-    public static void CreateRoom(string name, out string hostSecret)
+    public static async Task<string> CreateRoom(string name)
     {
         if (_room.ContainsKey(name))
             throw new Exception("Room already exists");
         
-        hostSecret = Guid.NewGuid().ToString().Replace("-", "");
+        var hostSecret = Guid.NewGuid().ToString().Replace("-", "");
+
+        await HTTPRestAPI.RegisterRoom(name);
         
         _roomIdToName.Add(_roomIdCounter, name);
         _room.Add(name, new Room
@@ -32,6 +34,8 @@ public static class Lobby
             createdAt = DateTime.UtcNow,
             roomId = _roomIdCounter++
         });
+        
+        return hostSecret;
     }
 
     public static bool TryGetRoom(string name, out Room? room)
@@ -48,6 +52,9 @@ public static class Lobby
     public static void RemoveRoom(ulong roomId)
     {
         if (_roomIdToName.Remove(roomId, out var name))
+        {
             _room.Remove(name);
+            _ = HTTPRestAPI.unegisterRoom(name);
+        }
     }
 }

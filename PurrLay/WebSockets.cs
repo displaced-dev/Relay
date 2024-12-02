@@ -1,6 +1,7 @@
 ﻿using System.Security.Authentication;
 using System.Text;
 using JamesFrowen.SimpleWeb;
+using LiteNetLib.Utils;
 using Newtonsoft.Json;
 
 namespace PurrLay;
@@ -24,20 +25,20 @@ public class WebSockets : IDisposable
     public event Action? onClosed;
     
     public int port { get; private set; }
-
-    private Thread? _thread;
     
+    private bool _disposed;
+
     public WebSockets(int port)
     {
         this.port = port;
-        _thread = new Thread(Start);
-        _thread.Start();
+        var thread = new Thread(Start);
+        thread.Start();
     }
 
     private void Start()
     {
 #if DEBUG
-        var sslConfig = new SslConfig(false, null, null, SslProtocols.None);
+        var sslConfig = new SslConfig(false, null!, null!, SslProtocols.None);
 #else
         var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls12);
 #endif
@@ -47,7 +48,7 @@ public class WebSockets : IDisposable
         _server.onDisconnect += OnClientDisconnectedFromServer;
         _server.onData += OnServerReceivedData;
 
-        while (true)
+        while (!_disposed)
         {
             try
             {
@@ -316,24 +317,21 @@ public class WebSockets : IDisposable
             SendSingleCode(connId, SERVER_PACKET_TYPE.SERVER_AUTHENTICATION_FAILED);
         }
     }
+    
+    readonly NetDataWriter _writer = new();
 
     private void SendClientsConnected(ulong roomId, List<int> connected)
     {
         if (!_roomToHost.TryGetValue(roomId, out var connId))
             return;
         
-        var buffer = new byte[connected.Count * sizeof(int) + 1];
-        buffer[0] = (byte)SERVER_PACKET_TYPE.SERVER_CLIENT_CONNECTED;
+        _writer.Reset();
+        _writer.Put((byte)SERVER_PACKET_TYPE.SERVER_CLIENT_CONNECTED);
         
         for (int i = 0; i < connected.Count; i++)
-        {
-            buffer[i * sizeof(int) + 1] = (byte)connected[i];
-            buffer[i * sizeof(int) + 2] = (byte)(connected[i] >> 8);
-            buffer[i * sizeof(int) + 3] = (byte)(connected[i] >> 16);
-            buffer[i * sizeof(int) + 4] = (byte)(connected[i] >> 24);
-        }
-        
-        _server?.SendOne(connId, new ArraySegment<byte>(buffer));
+            _writer.Put(connected[i]);
+
+        _server?.SendOne(connId, _writer.CopyData());
     }
     
     private void SendClientsConnected(ulong roomId, int connected)
@@ -341,60 +339,40 @@ public class WebSockets : IDisposable
         if (!_roomToHost.TryGetValue(roomId, out var connId))
             return;
         
-        var buffer = new byte[sizeof(int) + 1];
-        buffer[0] = (byte)SERVER_PACKET_TYPE.SERVER_CLIENT_CONNECTED;
+        _writer.Reset();
+        _writer.Put((byte)SERVER_PACKET_TYPE.SERVER_CLIENT_CONNECTED);
+        _writer.Put(connected);
         
-        buffer[sizeof(int) + 1] = (byte)connected;
-        buffer[sizeof(int) + 2] = (byte)(connected >> 8);
-        buffer[sizeof(int) + 3] = (byte)(connected >> 16);
-        buffer[sizeof(int) + 4] = (byte)(connected >> 24);
-        
-        _server?.SendOne(connId, new ArraySegment<byte>(buffer));
+        _server?.SendOne(connId, _writer.CopyData());
     }
-    
-    private void SendClientsDisconnected(ulong roomId, List<int> disconnected)
-    {
-        if (!_roomToHost.TryGetValue(roomId, out var connId))
-            return;
-        
-        var buffer = new byte[disconnected.Count * sizeof(int) + 1];
-        buffer[0] = (byte)SERVER_PACKET_TYPE.SERVER_CLIENT_DISCONNECTED;
-        
-        for (int i = 0; i < disconnected.Count; i++)
-        {
-            buffer[i * sizeof(int) + 1] = (byte)disconnected[i];
-            buffer[i * sizeof(int) + 2] = (byte)(disconnected[i] >> 8);
-            buffer[i * sizeof(int) + 3] = (byte)(disconnected[i] >> 16);
-            buffer[i * sizeof(int) + 4] = (byte)(disconnected[i] >> 24);
-        }
-        
-        _server?.SendOne(connId, new ArraySegment<byte>(buffer));
-    }
-    
     
     private void SendClientsDisconnected(ulong roomId, int disconnected)
     {
         if (!_roomToHost.TryGetValue(roomId, out var connId))
             return;
         
-        var buffer = new byte[sizeof(int) + 1];
-        buffer[0] = (byte)SERVER_PACKET_TYPE.SERVER_CLIENT_DISCONNECTED;
+        _writer.Reset();
+        _writer.Put((byte)SERVER_PACKET_TYPE.SERVER_CLIENT_DISCONNECTED);
+        _writer.Put(disconnected);
         
-        buffer[sizeof(int) + 1] = (byte)disconnected;
-        buffer[sizeof(int) + 2] = (byte)(disconnected >> 8);
-        buffer[sizeof(int) + 3] = (byte)(disconnected >> 16);
-        buffer[sizeof(int) + 4] = (byte)(disconnected >> 24);
-        
-        _server?.SendOne(connId, new ArraySegment<byte>(buffer));
+        _server?.SendOne(connId, _writer.CopyData());
     }
     
     private void SendSingleCode(int connId, SERVER_PACKET_TYPE type)
     {
-        _server?.SendOne(connId, new ArraySegment<byte>([(byte)type]));
+        _writer.Reset();
+        _writer.Put((byte)type);
+        
+        _server?.SendOne(connId, _writer.CopyData());
     }
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        
+        _disposed = true;
+        
         if (_server?.Active == false)
             return;
         
