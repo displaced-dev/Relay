@@ -16,7 +16,7 @@ public class WebSockets : IDisposable
 {
     private SimpleWebServer? _server;
     
-    readonly TcpConfig _tcpConfig = new (noDelay: true, sendTimeout: int.MaxValue, receiveTimeout: int.MaxValue);
+    readonly TcpConfig _tcpConfig = new (noDelay: true, sendTimeout: 0, receiveTimeout: 0);
     
     private readonly Dictionary<int, ulong> _clientToRoom = new();
     private readonly Dictionary<ulong, List<int>> _roomToClients = new();
@@ -100,13 +100,10 @@ public class WebSockets : IDisposable
         SERVER_AUTHENTICATION_FAILED = 4
     }
     
-    public enum HOST_PACKET_TYPE : byte
+    enum HOST_PACKET_TYPE : byte
     {
-        SEND_ALL = 0,
-        SEND_ONE = 1,
-        SEND_MANY = 2,
-        SEND_ALL_EXCEPT = 3,
-        SEND_ALL_EXCEPT_MANY = 4
+        SEND_KEEPALIVE = 0,
+        SEND_ONE = 1
     }
 
     private void OnServerReceivedData(int connId, ArraySegment<byte> data)
@@ -138,12 +135,8 @@ public class WebSockets : IDisposable
 
             switch (type)
             {
-                case HOST_PACKET_TYPE.SEND_ALL:
-                {
-                    if (_roomToClients.TryGetValue(roomId, out var list))
-                        _server?.SendAll(list, subData);
+                case HOST_PACKET_TYPE.SEND_KEEPALIVE:
                     break;
-                }
                 case HOST_PACKET_TYPE.SEND_ONE:
                 {
                     const int metdataLength = sizeof(int);
@@ -157,81 +150,6 @@ public class WebSockets : IDisposable
                     {
                         _server?.SendOne(target, new ArraySegment<byte>(
                             subData.Array, subData.Offset + metdataLength, subData.Count - metdataLength));
-                    }
-                    break;
-                }
-                case HOST_PACKET_TYPE.SEND_MANY:
-                {
-                    int count = subData.Array[subData.Offset + 0] | 
-                                 subData.Array[subData.Offset + 1] << 8 | 
-                                 subData.Array[subData.Offset + 2] << 16 | 
-                                 subData.Array[subData.Offset + 3] << 24;
-                    
-                    List<int> targets = [count];
-                    
-                    for (int i = 0; i < count; i++)
-                    {
-                        int target = subData.Array[subData.Offset + 4 + i * sizeof(int)] | 
-                                     subData.Array[subData.Offset + 5 + i * sizeof(int)] << 8 | 
-                                     subData.Array[subData.Offset + 6 + i * sizeof(int)] << 16 | 
-                                     subData.Array[subData.Offset + 7 + i * sizeof(int)] << 24;
-                        
-                        if (_clientToRoom.TryGetValue(target, out var room) && room == roomId)
-                            targets.Add(target);
-                    }
-                    
-                    _server?.SendAll(targets, new ArraySegment<byte>(
-                        subData.Array, subData.Offset + 4 + count * sizeof(int), subData.Count - 4 - count * sizeof(int)));
-                    break;
-                }
-                case HOST_PACKET_TYPE.SEND_ALL_EXCEPT:
-                {
-                    const int metdataLength = sizeof(int);
-                    
-                    int target = subData.Array[subData.Offset + 0] | 
-                                 subData.Array[subData.Offset + 1] << 8 | 
-                                 subData.Array[subData.Offset + 2] << 16 | 
-                                 subData.Array[subData.Offset + 3] << 24;
-                    
-                    if (_roomToClients.TryGetValue(roomId, out var list))
-                    {
-                        List<int> allExcept = [..list];
-                        
-                        allExcept.Remove(target);
-                        
-                        _server?.SendAll(allExcept, new ArraySegment<byte>(
-                            subData.Array, subData.Offset + metdataLength, subData.Count - metdataLength));
-                    }
-                    break;
-                }
-                case HOST_PACKET_TYPE.SEND_ALL_EXCEPT_MANY:
-                {
-                    int count = subData.Array[subData.Offset + 0] | 
-                                 subData.Array[subData.Offset + 1] << 8 | 
-                                 subData.Array[subData.Offset + 2] << 16 | 
-                                 subData.Array[subData.Offset + 3] << 24;
-                    
-                    List<int> targets = [count];
-                    
-                    for (int i = 0; i < count; i++)
-                    {
-                        int target = subData.Array[subData.Offset + 4 + i * sizeof(int)] | 
-                                     subData.Array[subData.Offset + 5 + i * sizeof(int)] << 8 | 
-                                     subData.Array[subData.Offset + 6 + i * sizeof(int)] << 16 | 
-                                     subData.Array[subData.Offset + 7 + i * sizeof(int)] << 24;
-                        
-                        targets.Add(target);
-                    }
-                    
-                    if (_roomToClients.TryGetValue(roomId, out var list))
-                    {
-                        List<int> allExcept = [..list];
-                        
-                        foreach (var target in targets)
-                            allExcept.Remove(target);
-                        
-                        _server?.SendAll(allExcept, new ArraySegment<byte>(
-                            subData.Array, subData.Offset + 4 + count * sizeof(int), subData.Count - 4 - count * sizeof(int)));
                     }
                     break;
                 }
