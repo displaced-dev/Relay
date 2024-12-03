@@ -121,6 +121,6 @@ public static class HTTPRestAPI
             }
         }
         
-        throw new Exception($"Invalid path - relayer ({path})");
+        return new JObject();
     }
 }

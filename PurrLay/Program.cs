@@ -11,17 +11,12 @@ internal static class Program
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
-
+        // Peel out the requests and response objects
+        var req = ctx.Request;
+        var resp = ctx.Response;
+        
         try
         {
-            // Peel out the requests and response objects
-            var req = ctx.Request;
-            var resp = ctx.Response;
-        
-            resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            resp.Headers.Add("Access-Control-Allow-Origin", "*");
-            resp.Headers.Add("Access-Control-Allow-Headers", "*");
-
             var response = await HTTPRestAPI.OnRequest(req);
             var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
@@ -32,7 +27,6 @@ internal static class Program
         }
         catch (Exception e)
         {
-            var resp = ctx.Response;
             var data = Encoding.UTF8.GetBytes(e.Message);
             
             resp.StatusCode = 500;
@@ -80,7 +74,7 @@ internal static class Program
         
         var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
         server.Settings.Headers.AccessControlAllowHeaders = "*";
-        server.Settings.Headers.AccessControlAllowMethods = "GET, POST, OPTIONS";
+        server.Settings.Headers.AccessControlAllowMethods = "*";
         server.Settings.Headers.AccessControlAllowOrigin = "*";
         server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
         

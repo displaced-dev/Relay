@@ -208,6 +208,6 @@ public static class HTTPRestAPI
             }
         }
         
-        throw new Exception($"Invalid path - balancer ({path})");
+        return new JObject();
     }
 }
