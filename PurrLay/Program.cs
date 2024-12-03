@@ -79,6 +79,9 @@ internal static class Program
         const int _Port = 8081;
         
         var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
+        server.Settings.Headers.AccessControlAllowHeaders = "*";
+        server.Settings.Headers.AccessControlAllowMethods = "GET, POST, OPTIONS";
+        server.Settings.Headers.AccessControlAllowOrigin = "*";
         server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
         
         Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
