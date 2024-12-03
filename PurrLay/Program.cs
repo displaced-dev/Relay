@@ -18,7 +18,7 @@ internal static class Program
             var req = ctx.Request;
             var resp = ctx.Response;
         
-            resp.Headers.Add("Access-Control-Allow-Methods", "GET");
+            resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
             resp.Headers.Add("Access-Control-Allow-Headers", "*");
 
