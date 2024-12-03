@@ -20,7 +20,8 @@ internal static class Program
         
             resp.Headers.Add("Access-Control-Allow-Methods", "GET");
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
-            
+            resp.Headers.Add("Access-Control-Allow-Headers", "*");
+
             var response = await HTTPRestAPI.OnRequest(req);
             var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
 
