@@ -19,6 +19,7 @@ jobs:
           host: 160.119.251.181
           username: root
           key: ${{ secrets.SSH_KEY }}
+          password: T4Al05FLCY
           port: 22
           script: |
             # Define variables
