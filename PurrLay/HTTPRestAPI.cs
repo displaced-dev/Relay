@@ -20,7 +20,7 @@ public static class HTTPRestAPI
         using HttpClient client = new();
                 
         client.DefaultRequestHeaders.Add("name", roomName);
-        client.DefaultRequestHeaders.Add(region, region);
+        client.DefaultRequestHeaders.Add("region", region);
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
         
         var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
