@@ -16,14 +16,14 @@ public static class Lobby
     
     static ulong _roomIdCounter;
     
-    public static async Task<string> CreateRoom(string name)
+    public static async Task<string> CreateRoom(string region, string name)
     {
         if (_room.ContainsKey(name))
             throw new Exception("Room already exists");
         
         var hostSecret = Guid.NewGuid().ToString().Replace("-", "");
 
-        await HTTPRestAPI.RegisterRoom(name);
+        await HTTPRestAPI.RegisterRoom(region, name);
         
         _roomIdToName.Add(_roomIdCounter, name);
         _room.Add(name, new Room

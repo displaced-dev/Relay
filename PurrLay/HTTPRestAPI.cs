@@ -8,7 +8,6 @@ namespace PurrLay;
 public static class HTTPRestAPI
 {
     static WebSockets? _server;
-    private static string? _region;
     
 #if DEBUG
     const string PROTOCOL = "http";
@@ -16,12 +15,12 @@ public static class HTTPRestAPI
     const string PROTOCOL = "https";
 #endif
     
-    public static async Task RegisterRoom(string roomName)
+    public static async Task RegisterRoom(string region, string roomName)
     {
         using HttpClient client = new();
                 
         client.DefaultRequestHeaders.Add("name", roomName);
-        client.DefaultRequestHeaders.Add("region", _region);
+        client.DefaultRequestHeaders.Add(region, region);
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
         
         var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
@@ -107,9 +106,7 @@ public static class HTTPRestAPI
                 if (!string.Equals(internalSec, Program.SECRET_INTERNAL))
                     throw new Exception($"Bad internal secret, {internalSec.Length}");
                 
-                _region ??= region;
-                
-                var secret = await Lobby.CreateRoom(name);
+                var secret = await Lobby.CreateRoom(region, name);
                 
                 _server ??= new WebSockets(6942);
 
