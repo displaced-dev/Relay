@@ -117,13 +117,13 @@ public static class HTTPRestAPI
                 var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
                 
                 if (string.IsNullOrEmpty(region) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
-                    throw new Exception("Invalid headers");
+                    throw new Exception("PurrBalancer_registerRoom: Invalid headers");
                 
                 if (!TryGetServer(region, out _))
-                    throw new Exception("Invalid region when registering room");
+                    throw new Exception("PurrBalancer: Invalid region when registering room");
                 
                 if (!_roomToRegion.TryAdd(name, region))
-                    throw new Exception("Room already registered");
+                    throw new Exception("PurrBalancer: Room already registered");
 
                 return new JObject
                 {
@@ -136,10 +136,10 @@ public static class HTTPRestAPI
                 var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
                 
                 if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
-                    throw new Exception("Invalid headers");
+                    throw new Exception("PurrBalancer_unregisterRoom: Invalid headers");
                 
                 if (!_roomToRegion.Remove(name, out _))
-                    throw new Exception("Room not found");
+                    throw new Exception("PurrBalancer: Room not found");
 
                 return new JObject
                 {
@@ -151,13 +151,13 @@ public static class HTTPRestAPI
                 var name = req.RetrieveHeaderValue("name");
                 
                 if (string.IsNullOrEmpty(name))
-                    throw new Exception("Invalid headers");
+                    throw new Exception("PurrBalancer_join: Invalid headers");
                 
                 if (!_roomToRegion.TryGetValue(name, out var region))
-                    throw new Exception("Room not found");
+                    throw new Exception("PurrBalancer: Room not found");
                 
                 if (!TryGetServer(region, out var server))
-                    throw new Exception("Invalid region");
+                    throw new Exception("PurrBalancer: Invalid region");
 
                 using HttpClient client = new();
                 
@@ -193,13 +193,13 @@ public static class HTTPRestAPI
                 var name = req.RetrieveHeaderValue("name");
                 
                 if (string.IsNullOrEmpty(region))
-                    throw new Exception("Invalid headers");
+                    throw new Exception("PurrBalancer_allocate: Invalid headers");
                 
                 if (!TryGetServer(region, out var server))
-                    throw new Exception("Invalid region");
+                    throw new Exception("PurrBalancer: Invalid region");
                 
                 if (string.IsNullOrEmpty(name))
-                    throw new Exception("Invalid name");
+                    throw new Exception("PurrBalancer: Invalid name");
                 
                 using HttpClient client = new();
                 
