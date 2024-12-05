@@ -120,7 +120,7 @@ public static class HTTPRestAPI
                     throw new Exception("Invalid headers");
                 
                 if (!TryGetServer(region, out _))
-                    throw new Exception("Invalid region");
+                    throw new Exception("Invalid region when registering room");
                 
                 if (!_roomToRegion.TryAdd(name, region))
                     throw new Exception("Room already registered");
