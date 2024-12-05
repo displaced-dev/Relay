@@ -43,7 +43,7 @@ public class WebSockets : IDisposable
         var sslConfig = new SslConfig(true, Program.certPath, Program.keyPath, SslProtocols.Tls12);
 #endif
 
-        _server = new SimpleWebServer(5000, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
+        _server = new SimpleWebServer(int.MaxValue, _tcpConfig, ushort.MaxValue, 5000, sslConfig);
         _server.Start((ushort)port);
         _server.onDisconnect += OnClientDisconnectedFromServer;
         _server.onData += OnServerReceivedData;
