@@ -6,8 +6,8 @@ namespace PurrBalancer;
 
 internal static class Program
 {
-    public const string SECRET_INTERNAL = "XBf5mFfcCLmTuuCRTT8WbeymWbt5yyi3fcVq2Tu0WO924ZWkWxZXV337LzYLeg2F";
-    
+    public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
+
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
@@ -38,7 +38,7 @@ internal static class Program
     
     static string certPath = string.Empty;
     static string keyPath = string.Empty;
-    
+
     static void Main(string[] args)
     {
         for (int i = 0; i < args.Length; i++)
@@ -50,6 +50,9 @@ internal static class Program
                     break;
                 case "--key" when i + 1 < args.Length:
                     keyPath = args[++i];
+                    break;
+                case "--secret" when i + 1 < args.Length:
+                    SECRET_INTERNAL = args[++i];
                     break;
             }
         }

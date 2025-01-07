@@ -6,7 +6,7 @@ namespace PurrLay;
 
 internal static class Program
 {
-    public const string SECRET_INTERNAL = "XBf5mFfcCLmTuuCRTT8WbeymWbt5yyi3fcVq2Tu0WO924ZWkWxZXV337LzYLeg2F";
+    public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
 
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
@@ -36,10 +36,10 @@ internal static class Program
         }
     }
     
-    public static string certPath = string.Empty;
-    public static string keyPath = string.Empty;
-    public static string host = string.Empty;
-    
+    static string certPath = string.Empty;
+    static string keyPath = string.Empty;
+    static string host = string.Empty;
+
     static void Main(string[] args)
     {
         string domain = string.Empty;
@@ -56,6 +56,9 @@ internal static class Program
                     break;
                 case "--url" when i + 1 < args.Length:
                     domain = args[++i];
+                    break;
+                case "--secret" when i + 1 < args.Length:
+                    SECRET_INTERNAL = args[++i];
                     break;
             }
         }

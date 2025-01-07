@@ -96,4 +96,5 @@ jobs:
             sudo nohup ./bin/Release/net8.0/$SERVICE_NAME \
               --url "$DOMAIN" \
               --cert "$PFX_CERT" \
+              --secret "${{ secrets.COMM_SECRET }}" \
               --key "$CERT_PASSWORD" > /dev/null 2>&1 &
