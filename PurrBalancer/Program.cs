@@ -36,8 +36,8 @@ internal static class Program
         }
     }
     
-    static string certPath = string.Empty;
-    static string keyPath = string.Empty;
+    public static string certPath = string.Empty;
+    public static string keyPath = string.Empty;
 
     static void Main(string[] args)
     {
