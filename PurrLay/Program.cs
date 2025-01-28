@@ -35,7 +35,7 @@ internal static class Program
             await resp.SendAsync(data);
         }
     }
-    
+
     public static string certPath = string.Empty;
     public static string keyPath = string.Empty;
     public static string host = string.Empty;
