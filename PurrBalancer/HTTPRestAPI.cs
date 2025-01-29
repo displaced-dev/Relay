@@ -39,6 +39,13 @@ public static class HTTPRestAPI
             region = "eu-central"
         },
         new() {
+            host = "fr.purrlay.riten.dev",
+            restPort = 8081,
+            udpPort = 8082,
+            webSocketsPort = 8083,
+            region = "eu-france"
+        },
+        new() {
             host = "us-east.purrlay.riten.dev",
             restPort = 8081,
             udpPort = 8082,
