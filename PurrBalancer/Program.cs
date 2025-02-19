@@ -11,7 +11,7 @@ internal static class Program
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
-        // Peel out the requests and response objects
+        // Peel out the requests and response objects 
         var req = ctx.Request;
         var resp = ctx.Response;
         
