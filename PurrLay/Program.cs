@@ -12,7 +12,7 @@ internal static class Program
     {
         Console.WriteLine($"# Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
 
-        // Peel out the requests and response objects 
+        // Peel out the reque sts and response objects 
         var req = ctx.Request;
         var resp = ctx.Response;
 
