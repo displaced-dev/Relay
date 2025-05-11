@@ -7,7 +7,7 @@ namespace PurrBalancer;
 internal static class Program
 {
     public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
- 
+
     static async Task HandleIncomingConnections(HttpContext ctx)
     {
         Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
