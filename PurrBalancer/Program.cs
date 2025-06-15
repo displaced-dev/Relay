@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using HttpServerLite;
 using Newtonsoft.Json;
-
+ 
 namespace PurrBalancer;
 
 internal static class Program
