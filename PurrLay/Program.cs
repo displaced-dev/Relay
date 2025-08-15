@@ -4,7 +4,7 @@ using Newtonsoft.Json;
  
 namespace PurrLay;
 
-internal static class Program      
+internal static class Program       
 {
     public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
 
