@@ -12,7 +12,7 @@ primary_region = 'ewr'
 BALANCER_URL="https://resolute-balancer.purrservers.com"
 HOST_ENDPOINT="https://resolute-ewr-1.purrservers.com"
 HOST_REGION="ewr-1"
-HOST_DOMAIN="resolute-ewr-1"
+HOST_DOMAIN="resolute-ewr-1.purrservers.com"
 
 # HTTP + HTTPS + WebSockets
 [[services]]
