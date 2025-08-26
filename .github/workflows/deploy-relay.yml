@@ -1,4 +1,4 @@
-name: Build and Push Backend Container
+name: Build and Push Relay
 
 on:
   push:

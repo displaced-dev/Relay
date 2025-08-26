@@ -1,4 +1,4 @@
-name: Build and Push Backend Container
+name: Build and Push PurrBalancer
 
 on:
   push:
