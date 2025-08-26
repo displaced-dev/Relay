@@ -13,18 +13,21 @@ public static class HTTPRestAPI
 
     static bool TryGetServer(string region, out RelayServer server)
     {
-        for (var i = 0; i < _relayServers.Count; i++)
+        lock (_relayServers)
         {
-            var s = _relayServers[i];
-            if (s.region == region)
+            for (var i = 0; i < _relayServers.Count; i++)
             {
-                server = s;
-                return true;
+                var s = _relayServers[i];
+                if (s.region == region)
+                {
+                    server = s;
+                    return true;
+                }
             }
-        }
 
-        server = default;
-        return false;
+            server = default;
+            return false;
+        }
     }
 
     static readonly Dictionary<string, string> _roomToRegion = new();
@@ -34,19 +37,30 @@ public static class HTTPRestAPI
         if (req.Url == null)
             throw new Exception("Invalid URL");
 
-        return req.Url.RawWithoutQuery switch
+        switch (req.Url.RawWithoutQuery)
         {
-            "/" => new ApiResponse(DateTime.Now.ToString(CultureInfo.InvariantCulture)),
-            "/ping" => new ApiResponse(HttpStatusCode.OK),
-            "/servers" => new ApiResponse(new JObject { ["servers"] = JArray.FromObject(_relayServers) }),
-            "/registerServer" => RegisterServer(req),
-            "/unregisterServer" => UnregisterServer(req),
-            "/registerRoom" => RegisterRoom(req),
-            "/unregisterRoom" => UnregisterRoom(req),
-            "/join" => await HandleJoin(req),
-            "/allocate_ws" => await AllocateRoom(req),
-            _ => new ApiResponse(HttpStatusCode.NotFound)
-        };
+            case "/":
+                return new ApiResponse(DateTime.Now.ToString(CultureInfo.InvariantCulture));
+            case "/ping":
+                return new ApiResponse(HttpStatusCode.OK);
+            case "/servers":
+                lock (_relayServers)
+                    return new ApiResponse(new JObject { ["servers"] = JArray.FromObject(_relayServers) });
+            case "/registerServer":
+                return RegisterServer(req);
+            case "/unregisterServer":
+                return UnregisterServer(req);
+            case "/registerRoom":
+                return RegisterRoom(req);
+            case "/unregisterRoom":
+                return UnregisterRoom(req);
+            case "/join":
+                return await HandleJoin(req);
+            case "/allocate_ws":
+                return await AllocateRoom(req);
+            default:
+                return new ApiResponse(HttpStatusCode.NotFound);
+        }
     }
 
     private static async Task<ApiResponse> AllocateRoom(HttpRequestBase req)
@@ -185,18 +199,21 @@ public static class HTTPRestAPI
         var body = req.DataAsString;
         var server = JObject.Parse(body).ToObject<RelayServer>();
 
-        for (var i = 0; i < _relayServers.Count; i++)
+        lock (_relayServers)
         {
-            if (_relayServers[i].host == server.host)
+            for (var i = 0; i < _relayServers.Count; i++)
             {
-                return new ApiResponse(new JObject
+                if (_relayServers[i].host == server.host)
                 {
-                    ["status"] = "ok"
-                });
+                    return new ApiResponse(new JObject
+                    {
+                        ["status"] = "ok"
+                    });
+                }
             }
-        }
 
-        _relayServers.Add(server);
+            _relayServers.Add(server);
+        }
 
         return new ApiResponse(new JObject
         {
@@ -217,10 +234,13 @@ public static class HTTPRestAPI
         var body = req.DataAsString;
         var server = JObject.Parse(body).ToObject<RelayServer>();
 
-        for (var i = 0; i < _relayServers.Count; i++)
+        lock (_relayServers)
         {
-            if (_relayServers[i].host == server.host)
-                _relayServers.RemoveAt(i);
+            for (var i = 0; i < _relayServers.Count; i++)
+            {
+                if (_relayServers[i].host == server.host)
+                    _relayServers.RemoveAt(i);
+            }
         }
 
         return new ApiResponse(new JObject

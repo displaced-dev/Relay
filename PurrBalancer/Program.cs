@@ -10,7 +10,7 @@ internal static class Program
 
     private static async Task HandleRouting(HttpContextBase context)
     {
-        Console.WriteLine($"Received request: {context.Request.Method} {context.Request.Url.Full}");
+        await Console.Out.WriteLineAsync($"Received request: {context.Request.Method} {context.Request.Url.Full}");
 
         // Peel out the re quests and response objects
         var req = context.Request;
@@ -22,7 +22,6 @@ internal static class Program
             context.Response.ContentLength = response.data.Length;
             context.Response.ContentType = response.contentType;
             context.Response.StatusCode = (int)response.status;
-
             await resp.Send(response.data);
         }
         catch (Exception e)
