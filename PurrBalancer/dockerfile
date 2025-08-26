@@ -11,7 +11,7 @@ WORKDIR /app
 COPY --from=build /app .
 
 ENV HOST=+
-ENV PORT=80
+ENV PORT=8080
 
 EXPOSE ${PORT}
 
