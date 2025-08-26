@@ -1,8 +1,6 @@
 name: rebuild-purr-balancer-eu-france
 
 on:
-  push:
-    paths: ['PurrLay/**']
   workflow_dispatch:
 
 jobs:
