@@ -34,19 +34,11 @@ internal static class Program
     private static async Task HandleError(HttpContextBase context, Exception ex)
     {
         await Console.Error.WriteLineAsync($"Error handling request: {ex.Message}\n{ex.StackTrace}");
-#if DEBUG
         string message = $"{ex.Message}\n{ex.StackTrace}";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
         context.Response.ContentType = "text/plain";
         context.Response.ContentLength = message.Length;
         await context.Response.Send(message);
-#else
-        const string ERROR_MESSAGE = "Internal Server Error";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-        context.Response.ContentType = "text/plain";
-        context.Response.ContentLength = ERROR_MESSAGE.Length;
-        await context.Response.Send(ERROR_MESSAGE);
-#endif
     }
 
     static void Main(string[] args)
