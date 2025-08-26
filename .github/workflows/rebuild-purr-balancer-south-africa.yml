@@ -1,8 +1,6 @@
 name: rebuild-purr-balancer-south-africa
 
 on:
-  push:
-    paths: ['PurrLay/**']
   workflow_dispatch:
 
 jobs:

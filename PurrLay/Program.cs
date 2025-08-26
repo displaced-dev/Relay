@@ -1,97 +1,144 @@
-﻿using System.Text;
-using HttpServerLite;
-using Newtonsoft.Json; 
- 
+﻿using System.Net;
+using System.Text;
+using JetBrains.Annotations;
+using Newtonsoft.Json;
+using PurrBalancer;
+using WatsonWebserver;
+using WatsonWebserver.Core;
+
 namespace PurrLay;
 
 internal static class Program
 {
     public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
 
-    static async Task HandleIncomingConnections(HttpContext ctx)
-    { 
-        Console.WriteLine($"# Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
+    private static async Task HandleRouting(HttpContextBase context)
+    {
+        await Console.Out.WriteLineAsync($"Received request: {context.Request.Method} {context.Request.Url.Full}");
 
-        // Peel out the reque sts and response objects 
-        var req = ctx.Request;
-        var resp = ctx.Response;
+        // Peel out the re quests and response objects
+        var req = context.Request;
+        var resp = context.Response;
 
         try
         {
             var response = await HTTPRestAPI.OnRequest(req);
-            var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
-
-            resp.ContentType = "application/json";
-            resp.StatusCode = 200;
-            resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
+            context.Response.ContentLength = response.data.Length;
+            context.Response.ContentType = response.contentType;
+            context.Response.StatusCode = (int)response.status;
+            await resp.Send(response.data);
         }
         catch (Exception e)
         {
-            var data = Encoding.UTF8.GetBytes(e.Message);
-            
-            resp.StatusCode = 500;
-            resp.ContentType = "text/plain";
-            resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
+            await HandleError(context, e);
         }
     }
 
-    public static string certPath = string.Empty;
-    public static string keyPath = string.Empty;
-    public static string host = string.Empty;
-
-    static void Main(string[] args)
+    private static async Task HandleError(HttpContextBase context, Exception ex)
     {
-        string domain = string.Empty;
-        
-        for (int i = 0; i < args.Length; i++)
+        await Console.Error.WriteLineAsync($"Error handling request: {ex.Message}\n{ex.StackTrace}");
+#if DEBUG
+        string message = $"{ex.Message}\n{ex.StackTrace}";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "text/plain";
+        context.Response.ContentLength = message.Length;
+        await context.Response.Send(message);
+#else
+        const string ERROR_MESSAGE = "Internal Server Error";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "text/plain";
+        context.Response.ContentLength = ERROR_MESSAGE.Length;
+        await context.Response.Send(ERROR_MESSAGE);
+#endif
+    }
+
+    [UsedImplicitly]
+    struct RelayServer
+    {
+        [UsedImplicitly] public string apiEndpoint;
+        [UsedImplicitly] public string host;
+        [UsedImplicitly] public int udpPort;
+        [UsedImplicitly] public int webSocketsPort;
+        [UsedImplicitly] public string region;
+    }
+
+    static async void RegisterRelayToBalancer(string host, int port)
+    {
+        try
         {
-            switch (args[i])
+            const int SECONDS_BETWEEN_REGISTRATION_ATTEMPTS = 30;
+
+            if (!Env.TryGetValue("BALANCER_URL", out var balancer) || balancer == null)
             {
-                case "--cert" when i + 1 < args.Length:
-                    certPath = args[++i];
-                    break;
-                case "--key" when i + 1 < args.Length:
-                    keyPath = args[++i];
-                    break;
-                case "--url" when i + 1 < args.Length:
-                    domain = args[++i];
-                    break;
-                case "--secret" when i + 1 < args.Length:
-                    SECRET_INTERNAL = args[++i];
-                    break;
+                await Console.Error.WriteLineAsync("Missing `BALANCER_URL` env variable");
+                return;
+            }
+
+            if (!Env.TryGetValue("HOST_ENDPOINT", out var endpoint) || endpoint == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `HOST_ENDPOINT` env variable");
+                return;
+            }
+
+            if (!Env.TryGetValue("HOST_REGION", out var region)  || region == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `HOST_REGION` env variable");
+                return;
+            }
+
+            var server = new RelayServer
+            {
+                apiEndpoint = endpoint,
+                host = host,
+                udpPort = port,
+                webSocketsPort = port,
+                region = region
+            };
+
+            var serverJson = JsonConvert.SerializeObject(server);
+
+            while (true)
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("internal_key_secret", SECRET_INTERNAL);
+
+                using var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
+                using var response = await client.PostAsync($"{balancer}/registerServer", content);
+
+                if (!response.IsSuccessStatusCode)
+                    await Console.Error.WriteLineAsync($"Failed to register server: [{response.StatusCode}] {await response.Content.ReadAsStringAsync()}");
+                await Task.Delay(SECONDS_BETWEEN_REGISTRATION_ATTEMPTS * 1000);
             }
         }
-        
-        bool https = !string.IsNullOrEmpty(certPath) && !string.IsNullOrEmpty(keyPath);
-        
-        switch (https)
+        catch (Exception e)
         {
-            case true when !File.Exists(certPath):
-                Console.WriteLine("Certificate file not found");
-                return;
+            await Console.Error.WriteLineAsync($"Error registering server: {e.Message}\n{e.StackTrace}");
         }
+    }
 
-        host = string.IsNullOrWhiteSpace(domain) ? https ? "purrbalancer.riten.dev" : "localhost" : domain;
-        const int _Port = 8081;
-        
-        var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
-        server.Settings.Headers.AccessControlAllowHeaders = "*";
-        server.Settings.Headers.AccessControlAllowMethods = "*";
-        server.Settings.Headers.AccessControlAllowOrigin = "*";
-        server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
-        
-        Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-
-        if (https)
+    static void Main()
+    {
+        try
         {
-            Console.WriteLine($"Using PFX Certificate: {certPath}");
-            Console.WriteLine($"Using password: {keyPath}");
+            var host = Env.TryGetValueOrDefault("HOST", "localhost");
+            var port = Env.TryGetIntOrDefault("PORT", 8081);
+
+            RegisterRelayToBalancer(host, port);
+
+            Console.WriteLine($"Listening on http://{host}:{port}/");
+
+            var settings = new WebserverSettings(host, port);
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Origin"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Methods"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Headers"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Credentials"] = "true";
+            new Webserver(settings, HandleRouting).Start();
+            Thread.Sleep(Timeout.Infinite);
         }
-        
-        server.Start();
-        
-        new ManualResetEvent(false).WaitOne();
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"Error during startup: {e.Message}\n{e.StackTrace}");
+            Environment.Exit(1);
+        }
     }
 }

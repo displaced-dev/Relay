@@ -1,241 +1,320 @@
-﻿using System.Text;
-using HttpServerLite;
+﻿using System.Globalization;
+using System.Net;
+using System.Text;
 using Newtonsoft.Json.Linq;
+using WatsonWebserver.Core;
 using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrBalancer;
 
-public struct RelayServer
-{
-    public string host;
-    public int restPort;
-    public int udpPort;
-    public int webSocketsPort;
-    public string region;
-}
-
 public static class HTTPRestAPI
 {
-#if DEBUG
-    private static readonly RelayServer[] _relayServers =
-    [
-        new()
-        {
-            host = "localhost",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "local"
-        }
-    ];
-#else
-    static readonly RelayServer[] _relayServers =
-    [
-        new() {
-            host = "eu1.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "eu-central"
-        },
-        new() {
-            host = "fr.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "eu-france"
-        },
-        new() {
-            host = "us-east.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "us-east"
-        },
-        new() {
-            host = "us-west.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "us-west"
-        },
-        new() {
-            host = "br.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "brazil"
-        },
-        new() {
-            host = "asia.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "asia-southeast"
-        },
-        new() {
-            host = "za.purrlay.riten.dev",
-            restPort = 8081,
-            udpPort = 8082,
-            webSocketsPort = 8083,
-            region = "africa-south"
-        }
-    ];
-#endif
-    
-    static bool TryGetServer(string region, out RelayServer server)
+    private static readonly List<RelayServer> _relayServers = [];
+
+    public static async void StartHealthCheckService()
     {
-        foreach (var s in _relayServers)
+        try
         {
-            if (s.region == region)
+            const int SECONDS_BETWEEN_CHECKS = 30;
+            using var client = new HttpClient();
+
+            while (true)
             {
-                server = s;
-                return true;
+                await Task.Delay(SECONDS_BETWEEN_CHECKS * 1000);
+
+                int relayCount;
+
+                lock (_relayServers)
+                {
+                    relayCount = _relayServers.Count;
+                    if (relayCount == 0)
+                        continue;
+                }
+
+                for (var index = 0; index < relayCount; index++)
+                {
+                    string endpoint;
+                    lock (_relayServers)
+                    {
+                        relayCount = _relayServers.Count;
+                        if (index >= relayCount)
+                            break;
+                        endpoint = _relayServers[index].apiEndpoint;
+                    }
+
+                    bool success;
+
+                    try
+                    {
+                        using var res = await client.GetAsync($"{endpoint}/ping");
+                        success = res.IsSuccessStatusCode;
+                    }
+                    catch
+                    {
+                        success = false;
+                    }
+
+                    if (!success)
+                    {
+                        lock (_relayServers)
+                        {
+                            for (var i = index; i < relayCount; i++)
+                            {
+                                if (_relayServers[i].apiEndpoint == endpoint)
+                                {
+                                    _relayServers.RemoveAt(i);
+                                    index--;
+                                    break;
+                                }
+                            }
+                        }
+
+                        await Console.Error.WriteLineAsync($"PurrBalancer: Server `{endpoint}` is down");
+                    }
+                }
             }
         }
-        
-        server = default;
-        return false;
+        catch (Exception e)
+        {
+            await Console.Error.WriteLineAsync($"Error StartHealthCheckService: {e.Message}\n{e.StackTrace}");
+        }
     }
-    
+
+    static bool TryGetServer(string region, out RelayServer server)
+    {
+        lock (_relayServers)
+        {
+            for (var i = 0; i < _relayServers.Count; i++)
+            {
+                var s = _relayServers[i];
+                if (s.region == region)
+                {
+                    server = s;
+                    return true;
+                }
+            }
+
+            server = default;
+            return false;
+        }
+    }
+
     static readonly Dictionary<string, string> _roomToRegion = new();
-              
-#if DEBUG
-    const string PROTOCOL = "http";
-#else
-    const string PROTOCOL = "https";
-#endif
-    
-    public static async Task<JObject> OnRequest(HttpRequest req)
+
+    public static async Task<ApiResponse> OnRequest(HttpRequestBase req)
     {
         if (req.Url == null)
             throw new Exception("Invalid URL");
 
-        string path = req.Url.WithoutQuery;
-
-        switch (path)
+        switch (req.Url.RawWithoutQuery)
         {
-            case "/ping": return new JObject();
-            case "/servers": return new JObject { ["servers"] = JArray.FromObject(_relayServers) };
+            case "/":
+                return new ApiResponse(DateTime.Now.ToString(CultureInfo.InvariantCulture));
+            case "/ping":
+                return new ApiResponse(HttpStatusCode.OK);
+            case "/servers":
+                lock (_relayServers)
+                    return new ApiResponse(new JObject { ["servers"] = JArray.FromObject(_relayServers) });
+            case "/registerServer":
+                return RegisterServer(req);
+            case "/unregisterServer":
+                return UnregisterServer(req);
             case "/registerRoom":
-            {
-                var region = req.RetrieveHeaderValue("region");
-                var name = req.RetrieveHeaderValue("name");
-                var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
-                
-                if (string.IsNullOrEmpty(region) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
-                    throw new Exception("PurrBalancer_registerRoom: Invalid headers");
-                
-                if (!TryGetServer(region, out _))
-                    throw new Exception("PurrBalancer: Invalid region when registering room");
-                
-                if (!_roomToRegion.TryAdd(name, region))
-                    throw new Exception("PurrBalancer: Room already registered");
-
-                return new JObject
-                {
-                    ["status"] = "ok"
-                };
-            }
+                return RegisterRoom(req);
             case "/unregisterRoom":
-            {
-                var name = req.RetrieveHeaderValue("name");
-                var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
-                
-                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
-                    throw new Exception("PurrBalancer_unregisterRoom: Invalid headers");
-                
-                if (!_roomToRegion.Remove(name, out _))
-                    throw new Exception("PurrBalancer: Room not found");
-
-                return new JObject
-                {
-                    ["status"] = "ok"
-                };
-            }
+                return UnregisterRoom(req);
             case "/join":
-            {
-                var name = req.RetrieveHeaderValue("name");
-                
-                if (string.IsNullOrEmpty(name))
-                    throw new Exception("PurrBalancer_join: Invalid headers");
-                
-                if (!_roomToRegion.TryGetValue(name, out var region))
-                    throw new Exception("PurrBalancer: Room not found");
-                
-                if (!TryGetServer(region, out var server))
-                    throw new Exception("PurrBalancer: Invalid region");
+                return await HandleJoin(req);
+            case "/allocate_ws":
+                return await AllocateRoom(req);
+            default:
+                return new ApiResponse(HttpStatusCode.NotFound);
+        }
+    }
 
-                using HttpClient client = new();
-                
-                client.DefaultRequestHeaders.Add("name", name);
-                client.DefaultRequestHeaders.Add("region", region);
-                client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
-                
-                var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
-                    $"{PROTOCOL}://{server.host}:{server.restPort}/getJoinDetails"));
-                
-                if (!resp.IsSuccessStatusCode)
+    private static async Task<ApiResponse> AllocateRoom(HttpRequestBase req)
+    {
+        var region = req.RetrieveHeaderValue("region");
+        var name = req.RetrieveHeaderValue("name");
+
+        if (string.IsNullOrEmpty(region))
+            throw new Exception("PurrBalancer_allocate: Invalid headers");
+
+        if (!TryGetServer(region, out var server))
+            throw new Exception("PurrBalancer: Invalid region");
+
+        if (string.IsNullOrEmpty(name))
+            throw new Exception("PurrBalancer: Invalid name");
+
+        using HttpClient client = new();
+
+        client.DefaultRequestHeaders.Add("name", name);
+        client.DefaultRequestHeaders.Add("region", region);
+        client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
+
+        var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"{server.apiEndpoint}/allocate_ws"));
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var content = resp.Content.ReadAsByteArrayAsync();
+            var contentStr = Encoding.UTF8.GetString(content.Result);
+            throw new Exception(contentStr);
+        }
+
+        try
+        {
+            var respStr = await resp.Content.ReadAsByteArrayAsync();
+            return new ApiResponse(respStr, HttpStatusCode.OK, ContentType.JSON);
+        }
+        catch (Exception e)
+        {
+            throw new Exception("Invalid response " + e.Message + "\n" + e.StackTrace);
+        }
+    }
+
+    private static async Task<ApiResponse> HandleJoin(HttpRequestBase req)
+    {
+        var name = req.RetrieveHeaderValue("name");
+
+        if (string.IsNullOrEmpty(name))
+            throw new Exception("PurrBalancer_join: Invalid headers");
+
+        if (!_roomToRegion.TryGetValue(name, out var region))
+            throw new Exception("PurrBalancer: Room not found");
+
+        if (!TryGetServer(region, out var server))
+            throw new Exception("PurrBalancer: Invalid region");
+
+        using HttpClient client = new();
+
+        client.DefaultRequestHeaders.Add("name", name);
+        client.DefaultRequestHeaders.Add("region", region);
+        client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
+
+        var r = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"{server.apiEndpoint}/getJoinDetails"));
+
+        if (!r.IsSuccessStatusCode)
+        {
+            var content = r.Content.ReadAsByteArrayAsync();
+            var contentStr = Encoding.UTF8.GetString(content.Result);
+            throw new Exception(contentStr);
+        }
+
+        try
+        {
+            var respStr = await r.Content.ReadAsStringAsync();
+            var obj = JObject.Parse(respStr);
+            obj["host"] = server.host;
+            return new ApiResponse(obj);
+        }
+        catch (Exception e)
+        {
+            throw new Exception("Invalid response " + e.Message + "\n" + e.StackTrace);
+        }
+    }
+
+    private static ApiResponse UnregisterRoom(HttpRequestBase req)
+    {
+        var name = req.RetrieveHeaderValue("name");
+        var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
+
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
+            throw new Exception("PurrBalancer_unregisterRoom: Invalid headers");
+
+        if (!_roomToRegion.Remove(name, out _))
+            throw new Exception("PurrBalancer: Room not found");
+
+        return new ApiResponse(new JObject
+        {
+            ["status"] = "ok"
+        });
+    }
+
+    private static ApiResponse RegisterRoom(HttpRequestBase req)
+    {
+        var region = req.RetrieveHeaderValue("region");
+        var name = req.RetrieveHeaderValue("name");
+        var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
+
+        if (string.IsNullOrEmpty(region) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
+            throw new Exception("PurrBalancer_registerRoom: Invalid headers");
+
+        if (!string.Equals(internalSecret, Program.SECRET_INTERNAL))
+            throw new Exception("PurrBalancer: Invalid internal secret");
+
+        if (!TryGetServer(region, out _))
+            throw new Exception("PurrBalancer: Invalid region when registering room");
+
+        if (!_roomToRegion.TryAdd(name, region))
+            throw new Exception("PurrBalancer: Room already registered");
+
+        return new ApiResponse(new JObject
+        {
+            ["status"] = "ok"
+        });
+    }
+
+    private static ApiResponse RegisterServer(HttpRequestBase req)
+    {
+        if (req.Method != WatsonWebserver.Core.HttpMethod.POST)
+            throw new Exception("PurrBalancer: Invalid method");
+
+        var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
+        if (!string.Equals(internalSecret, Program.SECRET_INTERNAL))
+            throw new Exception("PurrBalancer: Invalid internal secret");
+
+        var body = req.DataAsString;
+        var server = JObject.Parse(body).ToObject<RelayServer>();
+
+        lock (_relayServers)
+        {
+            for (var i = 0; i < _relayServers.Count; i++)
+            {
+                if (_relayServers[i].host == server.host)
                 {
-                    var content = resp.Content.ReadAsByteArrayAsync();
-                    var contentStr = Encoding.UTF8.GetString(content.Result);
-                    throw new Exception(contentStr);
-                }
-                
-                try
-                {
-                    var respStr = await resp.Content.ReadAsStringAsync();
-                    var obj = JObject.Parse(respStr);
-                    obj["host"] = server.host;
-                    return obj;
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("Invalid response " + e.Message + "\n" + e.StackTrace);
+                    return new ApiResponse(new JObject
+                    {
+                        ["status"] = "ok"
+                    });
                 }
             }
-            case "/allocate_ws":
+
+            _relayServers.Add(server);
+        }
+
+        return new ApiResponse(new JObject
+        {
+            ["status"] = "ok"
+        });
+    }
+
+    private static ApiResponse UnregisterServer(HttpRequestBase req)
+    {
+        if (req.Method != WatsonWebserver.Core.HttpMethod.POST)
+            throw new Exception("PurrBalancer: Invalid method");
+
+        var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
+
+        if (!string.Equals(internalSecret, Program.SECRET_INTERNAL))
+            throw new Exception("PurrBalancer: Invalid internal secret");
+
+        var body = req.DataAsString;
+        var server = JObject.Parse(body).ToObject<RelayServer>();
+
+        lock (_relayServers)
+        {
+            for (var i = 0; i < _relayServers.Count; i++)
             {
-                var region = req.RetrieveHeaderValue("region");
-                var name = req.RetrieveHeaderValue("name");
-                
-                if (string.IsNullOrEmpty(region))
-                    throw new Exception("PurrBalancer_allocate: Invalid headers");
-                
-                if (!TryGetServer(region, out var server))
-                    throw new Exception("PurrBalancer: Invalid region");
-                
-                if (string.IsNullOrEmpty(name))
-                    throw new Exception("PurrBalancer: Invalid name");
-                
-                using HttpClient client = new();
-                
-                client.DefaultRequestHeaders.Add("name", name);
-                client.DefaultRequestHeaders.Add("region", region);
-                client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
-                
-                var resp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, 
-                    $"{PROTOCOL}://{server.host}:{server.restPort}/allocate_ws"));
-
-                if (!resp.IsSuccessStatusCode)
-                {
-                    var content = resp.Content.ReadAsByteArrayAsync();
-                    var contentStr = Encoding.UTF8.GetString(content.Result);
-                    throw new Exception(contentStr);
-                }
-
-                try
-                {
-                    var respStr = await resp.Content.ReadAsStringAsync();
-                    return JObject.Parse(respStr);
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("Invalid response " + e.Message + "\n" + e.StackTrace);
-                }
+                if (_relayServers[i].host == server.host)
+                    _relayServers.RemoveAt(i);
             }
         }
-        
-        return new JObject();
+
+        return new ApiResponse(new JObject
+        {
+            ["status"] = "ok"
+        });
     }
 }

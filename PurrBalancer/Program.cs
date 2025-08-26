@@ -1,91 +1,76 @@
-﻿using System.Text;
-using HttpServerLite;
-using Newtonsoft.Json;
- 
+﻿using System.Net;
+using WatsonWebserver;
+using WatsonWebserver.Core;
+
 namespace PurrBalancer;
 
-internal static class Program     
-{ 
-    public static string SECRET_INTERNAL { get; private set; } = "PURRNET"; 
+internal static class Program
+{
+    public static string SECRET_INTERNAL { get; private set; } = "PURRNET";
 
-    static async Task HandleIncomingConnections(HttpContext ctx)
+    private static async Task HandleRouting(HttpContextBase context)
     {
-        Console.WriteLine($"Received request: {ctx.Request.Method} {ctx.Request.Url.Full}");
-        
-        // Peel out the re quests and response objects 
-        var req = ctx.Request;
-        var resp = ctx.Response;
-        
+        await Console.Out.WriteLineAsync($"Received request: {context.Request.Method} {context.Request.Url.Full}");
+
+        // Peel out the re quests and response objects
+        var req = context.Request;
+        var resp = context.Response;
+
         try
         {
             var response = await HTTPRestAPI.OnRequest(req);
-            var data = Encoding.UTF8.GetBytes(response.ToString(Formatting.None));
-
-            resp.ContentType = "application/json";
-            resp.StatusCode = 200;
-            resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
+            context.Response.ContentLength = response.data.Length;
+            context.Response.ContentType = response.contentType;
+            context.Response.StatusCode = (int)response.status;
+            await resp.Send(response.data);
         }
         catch (Exception e)
         {
-            var data = Encoding.UTF8.GetBytes(e.Message);
-            
-            resp.StatusCode = 500;
-            resp.ContentType = "text/plain";
-            resp.ContentLength = data.LongLength;
-            await resp.SendAsync(data);
+            await HandleError(context, e);
         }
     }
-    
-    public static string certPath = string.Empty;
-    public static string keyPath = string.Empty;
 
-    static void Main(string[] args)
+    private static async Task HandleError(HttpContextBase context, Exception ex)
     {
-        for (int i = 0; i < args.Length; i++)
-        {
-            switch (args[i])
-            {
-                case "--cert" when i + 1 < args.Length:
-                    certPath = args[++i];
-                    break;
-                case "--key" when i + 1 < args.Length:
-                    keyPath = args[++i];
-                    break;
-                case "--secret" when i + 1 < args.Length:
-                    SECRET_INTERNAL = args[++i];
-                    break;
-            }
-        }
-        
-        bool https = !string.IsNullOrEmpty(certPath) && !string.IsNullOrEmpty(keyPath);
-        
-        switch (https)
-        {
-            case true when !File.Exists(certPath):
-                Console.WriteLine("Certificate file not found");
-                return;
-        }
+        await Console.Error.WriteLineAsync($"Error handling request: {ex.Message}\n{ex.StackTrace}");
+#if DEBUG
+        string message = $"{ex.Message}\n{ex.StackTrace}";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "text/plain";
+        context.Response.ContentLength = message.Length;
+        await context.Response.Send(message);
+#else
+        const string ERROR_MESSAGE = "Internal Server Error";
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "text/plain";
+        context.Response.ContentLength = ERROR_MESSAGE.Length;
+        await context.Response.Send(ERROR_MESSAGE);
+#endif
+    }
 
-        var host = https ? "purrbalancer.riten.dev" : "localhost";
-        const int _Port = 8080;
-        
-        var server = new Webserver(host, _Port, https, certPath, keyPath, HandleIncomingConnections); 
-        server.Settings.Headers.AccessControlAllowHeaders = "*";
-        server.Settings.Headers.AccessControlAllowMethods = "*";
-        server.Settings.Headers.AccessControlAllowOrigin = "*";
-        server.Settings.Headers.Host = $"{(https?"https":"http")}://{host}:{_Port}";
-        
-        Console.WriteLine($"Starting server on {host}:{_Port}, HTTPS: {https}");
-
-        if (https)
+    static void Main()
+    {
+        try
         {
-            Console.WriteLine($"Using PFX Certificate: {certPath}");
-            Console.WriteLine($"Using password: {keyPath}");
+            HTTPRestAPI.StartHealthCheckService();
+
+            var host = Env.TryGetValueOrDefault("HOST", "localhost");
+            var port = Env.TryGetIntOrDefault("PORT", 8080);
+
+            Console.WriteLine($"Listening on http://{host}:{port}/");
+
+            var settings = new WebserverSettings(host, port);
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Origin"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Methods"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Headers"] = "*";
+            settings.Headers.DefaultHeaders["Access-Control-Allow-Credentials"] = "true";
+            new Webserver(settings, HandleRouting).Start();
+            Thread.Sleep(Timeout.Infinite);
         }
-        
-        server.Start();
-        
-        new ManualResetEvent(false).WaitOne();
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"Error during startup: {e.Message}\n{e.StackTrace}");
+            Environment.Exit(1);
+        }
     }
 }
