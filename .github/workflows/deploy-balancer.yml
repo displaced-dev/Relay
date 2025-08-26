@@ -3,6 +3,7 @@ name: Build and Push Backend Container
 on:
   push:
     branches: [ "dev", "release" ]
+    paths:
       - 'PurrBalancer/**'
   workflow_dispatch:
 
