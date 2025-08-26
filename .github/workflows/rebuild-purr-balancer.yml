@@ -2,7 +2,6 @@ name: rebuild-purr-balancer
 
 on:
   push:
-    branches: ['main']
     paths: ['PurrBalancer/**']
   workflow_dispatch:
 
