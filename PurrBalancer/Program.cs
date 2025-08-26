@@ -52,6 +52,8 @@ internal static class Program
     {
         try
         {
+            HTTPRestAPI.StartHealthCheckService();
+
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
             var port = Env.TryGetIntOrDefault("PORT", 8080);
 

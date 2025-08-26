@@ -1,10 +1,10 @@
 ﻿using System.Net;
 using System.Text;
+using JetBrains.Annotations;
 using Newtonsoft.Json;
 using PurrBalancer;
 using WatsonWebserver;
 using WatsonWebserver.Core;
-using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrLay;
 
@@ -52,13 +52,14 @@ internal static class Program
 #endif
     }
 
+    [UsedImplicitly]
     struct RelayServer
     {
-        public string apiEndpoint;
-        public string host;
-        public int udpPort;
-        public int webSocketsPort;
-        public string region;
+        [UsedImplicitly] public string apiEndpoint;
+        [UsedImplicitly] public string host;
+        [UsedImplicitly] public int udpPort;
+        [UsedImplicitly] public int webSocketsPort;
+        [UsedImplicitly] public string region;
     }
 
     static async void RegisterRelayToBalancer(string host, int port)
@@ -66,6 +67,12 @@ internal static class Program
         try
         {
             const int SECONDS_BETWEEN_REGISTRATION_ATTEMPTS = 30;
+
+            if (!Env.TryGetValue("BALANCER_URL", out var balancer) || balancer == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `BALANCER_URL` env variable");
+                return;
+            }
 
             if (!Env.TryGetValue("HOST_ENDPOINT", out var endpoint) || endpoint == null)
             {
@@ -89,18 +96,18 @@ internal static class Program
             };
 
             var serverJson = JsonConvert.SerializeObject(server);
-            using var client = new HttpClient();
 
             while (true)
             {
+                using var client = new HttpClient();
                 client.DefaultRequestHeaders.Add("internal_key_secret", SECRET_INTERNAL);
 
-                var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync($"{endpoint}/registerServer", content);
+                using var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
+                using var response = await client.PostAsync($"{balancer}/registerServer", content);
 
                 if (!response.IsSuccessStatusCode)
                     await Console.Error.WriteLineAsync($"Failed to register server: [{response.StatusCode}] {await response.Content.ReadAsStringAsync()}");
-                await Task.Delay(SECONDS_BETWEEN_REGISTRATION_ATTEMPTS);
+                await Task.Delay(SECONDS_BETWEEN_REGISTRATION_ATTEMPTS * 1000);
             }
         }
         catch (Exception e)

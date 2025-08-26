@@ -11,6 +11,75 @@ public static class HTTPRestAPI
 {
     private static readonly List<RelayServer> _relayServers = [];
 
+    public static async void StartHealthCheckService()
+    {
+        try
+        {
+            const int SECONDS_BETWEEN_CHECKS = 30;
+            using var client = new HttpClient();
+
+            while (true)
+            {
+                await Task.Delay(SECONDS_BETWEEN_CHECKS * 1000);
+
+                int relayCount;
+
+                lock (_relayServers)
+                {
+                    relayCount = _relayServers.Count;
+                    if (relayCount == 0)
+                        continue;
+                }
+
+                for (var index = 0; index < relayCount; index++)
+                {
+                    string endpoint;
+                    lock (_relayServers)
+                    {
+                        relayCount = _relayServers.Count;
+                        if (index >= relayCount)
+                            break;
+                        endpoint = _relayServers[index].apiEndpoint;
+                    }
+
+                    bool success;
+
+                    try
+                    {
+                        using var res = await client.GetAsync($"{endpoint}/ping");
+                        success = res.IsSuccessStatusCode;
+                    }
+                    catch
+                    {
+                        success = false;
+                    }
+
+                    if (!success)
+                    {
+                        lock (_relayServers)
+                        {
+                            for (var i = index; i < relayCount; i++)
+                            {
+                                if (_relayServers[i].apiEndpoint == endpoint)
+                                {
+                                    _relayServers.RemoveAt(i);
+                                    index--;
+                                    break;
+                                }
+                            }
+                        }
+
+                        await Console.Error.WriteLineAsync($"PurrBalancer: Server `{endpoint}` is down");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            await Console.Error.WriteLineAsync($"Error StartHealthCheckService: {e.Message}\n{e.StackTrace}");
+        }
+    }
+
     static bool TryGetServer(string region, out RelayServer server)
     {
         lock (_relayServers)
