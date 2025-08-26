@@ -28,14 +28,15 @@ HOST_DOMAIN="resolute-ewr-1.purrservers.com"
     port = 443
     handlers = ["tls", "http"]
 
-# WebSockets
+# WebSockets (separate port)
 [[services]]
-  internal_port = 6942
-  protocol = "tcp"
-  processes = ["app"]
+    internal_port = 6942
+    protocol = "tcp"
+    processes = ["app"]
 
 [[services.ports]]
-  port = 6942
+    port = 6942
+    handlers = ["tls"]
 
 # UDP service (example: port 7777)
 [[services]]

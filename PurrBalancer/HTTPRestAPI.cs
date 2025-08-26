@@ -141,7 +141,7 @@ public static class HTTPRestAPI
             throw new Exception("PurrBalancer_allocate: Invalid headers");
 
         if (!TryGetServer(region, out var server))
-            throw new Exception("PurrBalancer: Invalid region");
+            throw new Exception($"PurrBalancer: Invalid region `{region}`");
 
         if (string.IsNullOrEmpty(name))
             throw new Exception("PurrBalancer: Invalid name");
