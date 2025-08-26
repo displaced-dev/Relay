@@ -32,6 +32,7 @@ jobs:
 
       - name: Build and push container image
         run: |
+          cd PurrBalancer
           REPO_NAME=purr-v2-balancer
           if [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
             TAG="dev"
