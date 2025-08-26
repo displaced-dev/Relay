@@ -272,8 +272,9 @@ public static class HTTPRestAPI
         {
             for (var i = 0; i < _relayServers.Count; i++)
             {
-                if (_relayServers[i].host == server.host)
+                if (_relayServers[i].region == server.region)
                 {
+                    _relayServers[i] = server;
                     return new ApiResponse(new JObject
                     {
                         ["status"] = "ok"
