@@ -12,14 +12,11 @@ public static class HTTPRestAPI
 {
     static WebSockets? _server;
 
-#if DEBUG
-    const string PROTOCOL = "http";
-#else
-    const string PROTOCOL = "https";
-#endif
-
     public static async Task RegisterRoom(string region, string roomName)
     {
+        if (!Env.TryGetValue("BALANCER_URL", out var balancerUrl))
+            throw new Exception("Missing `BALANCER_URL` env variable");
+
         using HttpClient client = new();
 
         client.DefaultRequestHeaders.Add("name", roomName);
@@ -27,7 +24,7 @@ public static class HTTPRestAPI
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
 
         var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
-            $"{PROTOCOL}://purrbalancer.riten.dev:8080/registerRoom"));
+            $"{balancerUrl}/registerRoom"));
 
         if (!response.IsSuccessStatusCode)
         {
@@ -39,13 +36,16 @@ public static class HTTPRestAPI
 
     public static async Task unegisterRoom(string roomName)
     {
+        if (!Env.TryGetValue("BALANCER_URL", out var balancerUrl))
+            throw new Exception("Missing `BALANCER_URL` env variable");
+
         using HttpClient client = new();
 
         client.DefaultRequestHeaders.Add("name", roomName);
         client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
 
         var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
-            $"{PROTOCOL}://purrbalancer.riten.dev:8080/unregisterRoom"));
+            $"{balancerUrl}/unregisterRoom"));
 
         if (!response.IsSuccessStatusCode)
         {

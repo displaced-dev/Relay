@@ -1,7 +1,10 @@
 ﻿using System.Net;
+using System.Text;
+using Newtonsoft.Json;
 using PurrBalancer;
 using WatsonWebserver;
 using WatsonWebserver.Core;
+using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrLay;
 
@@ -49,12 +52,71 @@ internal static class Program
 #endif
     }
 
+    struct RelayServer
+    {
+        public string apiEndpoint;
+        public string host;
+        public int udpPort;
+        public int webSocketsPort;
+        public string region;
+    }
+
+    static async void RegisterRelayToBalancer(string host, int port)
+    {
+        try
+        {
+            const int SECONDS_BETWEEN_REGISTRATION_ATTEMPTS = 30;
+
+            if (!Env.TryGetValue("HOST_ENDPOINT", out var endpoint) || endpoint == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `HOST_ENDPOINT` env variable");
+                return;
+            }
+
+            if (!Env.TryGetValue("HOST_REGION", out var region)  || region == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `HOST_REGION` env variable");
+                return;
+            }
+
+            var server = new RelayServer
+            {
+                apiEndpoint = endpoint,
+                host = host,
+                udpPort = port,
+                webSocketsPort = port,
+                region = region
+            };
+
+            var serverJson = JsonConvert.SerializeObject(server);
+            using var client = new HttpClient();
+
+            while (true)
+            {
+                client.DefaultRequestHeaders.Add("internal_key_secret", SECRET_INTERNAL);
+
+                var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
+                var response = await client.PostAsync($"{endpoint}/registerServer", content);
+
+                if (!response.IsSuccessStatusCode)
+                    await Console.Error.WriteLineAsync($"Failed to register server: [{response.StatusCode}] {await response.Content.ReadAsStringAsync()}");
+                await Task.Delay(SECONDS_BETWEEN_REGISTRATION_ATTEMPTS);
+            }
+        }
+        catch (Exception e)
+        {
+            await Console.Error.WriteLineAsync($"Error registering server: {e.Message}\n{e.StackTrace}");
+        }
+    }
+
     static void Main()
     {
         try
         {
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
-            var port = Env.TryGetIntOrDefault("PORT", 8080);
+            var port = Env.TryGetIntOrDefault("PORT", 8081);
+
+            RegisterRelayToBalancer(host, port);
 
             Console.WriteLine($"Listening on http://{host}:{port}/");
 
