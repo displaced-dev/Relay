@@ -48,7 +48,7 @@ internal static class Program
 #endif
     }
 
-    static void Main(string[] args)
+    static void Main()
     {
         try
         {
