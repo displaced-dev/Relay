@@ -87,6 +87,12 @@ internal static class Program
                 return;
             }
 
+            if (!Env.TryGetValue("HOST_DOMAIN", out var domains)  || domains == null)
+            {
+                await Console.Error.WriteLineAsync("Missing `HOST_DOMAIN` env variable");
+                return;
+            }
+
             var server = new RelayServer
             {
                 apiEndpoint = endpoint,
