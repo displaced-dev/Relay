@@ -97,7 +97,7 @@ internal static class Program
             {
                 apiEndpoint = endpoint,
                 host = domains,
-                udpPort = port,
+                udpPort = 7777,
                 webSocketsPort = port,
                 region = region
             };
