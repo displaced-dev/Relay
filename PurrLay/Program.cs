@@ -63,7 +63,7 @@ internal static class Program
         [UsedImplicitly] public string region;
     }
 
-    static async void RegisterRelayToBalancer(int port)
+    static async void RegisterRelayToBalancer()
     {
         try
         {
@@ -98,7 +98,7 @@ internal static class Program
                 apiEndpoint = endpoint,
                 host = domains,
                 udpPort = 7777,
-                webSocketsPort = port,
+                webSocketsPort = 443,
                 region = region
             };
 
@@ -146,7 +146,7 @@ internal static class Program
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
             var port = Env.TryGetIntOrDefault("PORT", 8081);
 
-            RegisterRelayToBalancer(port);
+            RegisterRelayToBalancer();
 
             Console.WriteLine($"Listening on http://{host}:{port}/");
 
