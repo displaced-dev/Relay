@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
@@ -116,8 +117,24 @@ internal static class Program
         }
     }
 
-    static void Main()
+    static void Main(string[] args)
     {
+        string? certPath = null;
+        string? keyPath = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--cert" when i + 1 < args.Length:
+                    certPath = args[++i];
+                    break;
+                case "--key" when i + 1 < args.Length:
+                    keyPath = args[++i];
+                    break;
+            }
+        }
+
         try
         {
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
@@ -132,6 +149,16 @@ internal static class Program
             settings.Headers.DefaultHeaders["Access-Control-Allow-Methods"] = "*";
             settings.Headers.DefaultHeaders["Access-Control-Allow-Headers"] = "*";
             settings.Headers.DefaultHeaders["Access-Control-Allow-Credentials"] = "true";
+
+            if (certPath != null && keyPath != null)
+            {
+                settings.Ssl = new WebserverSettings.SslSettings
+                {
+                    Enable = true,
+                    SslCertificate = X509Certificate2.CreateFromPemFile(certPath, keyPath)
+                };
+            }
+
             new Webserver(settings, HandleRouting).Start();
             Thread.Sleep(Timeout.Infinite);
         }
