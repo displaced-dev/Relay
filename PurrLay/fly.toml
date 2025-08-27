@@ -8,13 +8,19 @@ primary_region = 'ewr'
 
 [build]
 
-[http_service]
-internal_port = 8081
-force_https = true
-auto_stop_machines = 'stop'
-auto_start_machines = true
-min_machines_running = 1
-processes = ['app']
+# HTTP + HTTPS + WebSockets
+[[services]]
+  internal_port = 8081
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
 
 # WebSockets (separate port)
 [[services]]
