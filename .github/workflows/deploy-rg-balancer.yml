@@ -134,7 +134,7 @@ jobs:
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
           if ! flyctl ips list --app $RELAY_APP --json | jq -e '.[] | select(.Type=="v4")' > /dev/null; then
             echo "No IPv4 found, allocating one..."
-            flyctl ips allocate-v4 --app $RELAY_APP
+            flyctl ips allocate-v4 --app $RELAY_APP --yes
           else
             echo "IPv4 already exists for $RELAY_APP"
           fi
