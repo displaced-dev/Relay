@@ -46,8 +46,11 @@ jobs:
 
       - name: Ensure cert exists
         run: |
-          flyctl certs create "${APP_NAME}.${APP_DOMAIN}" \
-            --app $APP_NAME
+          if ! flyctl certs show "${APP_NAME}.${APP_DOMAIN}" --app $APP_NAME > /dev/null 2>&1; then
+            flyctl certs create "${APP_NAME}.${APP_DOMAIN}" --app $APP_NAME
+          else
+            echo "Cert already exists for ${APP_NAME}.${APP_DOMAIN}"
+          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
