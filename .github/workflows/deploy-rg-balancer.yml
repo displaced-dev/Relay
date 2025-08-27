@@ -56,16 +56,16 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Update Cloudflare DNS
-          run: |
-            IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[0].Address')
-            echo "Updating DNS for ${APP_NAME}.${APP_DOMAIN} -> $IP"
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" \
-              | jq .
-          env:
-            FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[0].Address')
+          echo "Updating DNS for ${APP_NAME}.${APP_DOMAIN} -> $IP"
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" \
+            | jq .
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   # -------------------
   # Relays (matrix deploy)
