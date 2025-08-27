@@ -178,7 +178,7 @@ jobs:
           # Ensure IPv6
           if ! flyctl ips list --app $RELAY_APP --json | jq -e '.[] | select(.Type=="v6")' > /dev/null; then
             echo "No IPv6 found, allocating one..."
-            flyctl ips allocate-v6 --app $RELAY_APP --yes
+            flyctl ips allocate-v6 --app $RELAY_APP
           else
             echo "IPv6 already exists for $RELAY_APP"
           fi
