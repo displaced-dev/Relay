@@ -137,7 +137,7 @@ jobs:
       - name: Update Cloudflare DNS
         run: |
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
-          IP=$(flyctl ips list --app $RELAY_APP --json | jq -r '.[] | select(.Type | contains("v4")) | .Address')
+          IP=$(flyctl ips list --app "${APP_NAME}-${{ matrix.prefix }}" --json | jq -r '.[] | select(.Type | contains("v4")) | .Address')
           echo "Updating DNS for ${RELAY_APP}.${APP_DOMAIN} -> $IP"
           
           if [ -z "$IP" ]; then
