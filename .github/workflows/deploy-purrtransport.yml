@@ -8,16 +8,6 @@ env: # 👈 global env
   APP_DOMAIN: purrservers.com
   APP_SECRET: ${{ secrets.PURR_APP_SECRET }}
   BAL_REGION: cdg
-  RELAY_MATRIX: |
-    [
-      {"region": "cdg", "prefix": "france"},
-      {"region": "gru", "prefix": "brazil"},
-      {"region": "jnb", "prefix": "south-africa"},
-      {"region": "ewr", "prefix": "nj-us"},
-      {"region": "nrt", "prefix": "japan"},
-      {"region": "syd", "prefix": "australia"},
-      {"region": "hkg", "prefix": "china"}
-    ]
 
 jobs:
   # -------------------
@@ -60,7 +50,21 @@ jobs:
     needs: balancer
     strategy:
       matrix:
-        include: ${{ fromJson(env.RELAY_MATRIX) }}
+        include:
+          - region: cdg
+            prefix: france
+          - region: gru
+            prefix: brazil
+          - region: jnb
+            prefix: south-africa
+          - region: ewr
+            prefix: nj-us
+          - region: nrt
+            prefix: japan
+          - region: syd
+            prefix: australia
+          - region: hkg
+            prefix: china
 
     steps:
       - name: Checkout code

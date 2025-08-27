@@ -8,10 +8,6 @@ env: # 👈 global env
   APP_DOMAIN: purrservers.com
   APP_SECRET: ${{ secrets.RG_APP_SECRET }}
   BAL_REGION: ewr
-  RELAY_MATRIX: |
-    [
-      {"region": "ewr", "prefix": "ewr-1"}
-    ]
 
 jobs:
   # -------------------
@@ -54,7 +50,9 @@ jobs:
     needs: balancer
     strategy:
       matrix:
-        include: ${{ fromJson(env.RELAY_MATRIX) }}
+        include:
+          - region: ewr
+            prefix: ewr-1
 
     steps:
       - name: Checkout code
