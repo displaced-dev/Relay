@@ -5,17 +5,18 @@ on:
 
 env: # 👈 global env
   APP_NAME: purrtransport
+  APP_DOMAIN: purrservers.com
   BAL_REGION: cdg
   RELAY_MATRIX: |
-  [
-    {"region": "cdg", "prefix": "france"},
-    {"region": "gru", "prefix": "brazil"},
-    {"region": "jnb", "prefix": "south-africa"},
-    {"region": "ewr", "prefix": "nj-us"},
-    {"region": "nrt", "prefix": "japan"},
-    {"region": "syd", "prefix": "australia"},
-    {"region": "hkg", "prefix": "china"}
-  ]
+    [
+      {"region": "cdg", "prefix": "france"},
+      {"region": "gru", "prefix": "brazil"},
+      {"region": "jnb", "prefix": "south-africa"},
+      {"region": "ewr", "prefix": "nj-us"},
+      {"region": "nrt", "prefix": "japan"},
+      {"region": "syd", "prefix": "australia"},
+      {"region": "hkg", "prefix": "china"}
+    ]
 
 jobs:
   # -------------------
@@ -63,7 +64,7 @@ jobs:
             --app "${APP_NAME}-${{ matrix.prefix }}" \
             --primary-region ${{ matrix.region }} \
             --env BALANCER_URL=${{ secrets.BALANCER_URL }} \
-            --env HOST_DOMAIN=${{ secrets.HOST_DOMAIN }} \
+            --env HOST_DOMAIN="${APP_DOMAIN}-${{ matrix.prefix }}" \
             --env HOST_REGION=${{ matrix.prefix }} \
             --env HOST_SSL="true"
         env:
