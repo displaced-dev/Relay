@@ -67,9 +67,9 @@ internal static class Program
                 return;
             }
 
-            if (!Env.TryGetValue("HOST_ENDPOINT", out var endpoint) || endpoint == null)
+            if (!Env.TryGetValue("HOST_SSL", out var ssl) || ssl == null)
             {
-                await Console.Error.WriteLineAsync("Missing `HOST_ENDPOINT` env variable");
+                await Console.Error.WriteLineAsync("Missing `HOST_SSL` env variable");
                 return;
             }
 
@@ -79,16 +79,19 @@ internal static class Program
                 return;
             }
 
-            if (!Env.TryGetValue("HOST_DOMAIN", out var domains)  || domains == null)
+            if (!Env.TryGetValue("HOST_DOMAIN", out var domain)  || domain == null)
             {
                 await Console.Error.WriteLineAsync("Missing `HOST_DOMAIN` env variable");
                 return;
             }
 
+            var hostPort = Env.TryGetIntOrDefault("HOST_PORT", -1);
+            string urlPort = hostPort == -1 ? "" : $":{hostPort}";
+
             var server = new RelayServer
             {
-                apiEndpoint = endpoint,
-                host = domains,
+                apiEndpoint = (ssl == "true" ? "https://" : "http://") + domain + urlPort,
+                host = domain,
                 udpPort = 7777,
                 webSocketsPort = 6942,
                 region = region
@@ -135,10 +138,13 @@ internal static class Program
 
         try
         {
+            RegisterRelayToBalancer();
+
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
             var port = Env.TryGetIntOrDefault("PORT", 8081);
 
-            RegisterRelayToBalancer();
+            if (Env.TryGetValue("SECRET", out var secret) && secret != null)
+                SECRET_INTERNAL = secret;
 
             Console.WriteLine($"Listening on http://{host}:{port}/");
 

@@ -66,6 +66,9 @@ internal static class Program
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
             var port = Env.TryGetIntOrDefault("PORT", 8080);
 
+            if (Env.TryGetValue("SECRET", out var secret) && secret != null)
+                SECRET_INTERNAL = secret;
+
             Console.WriteLine($"Listening on http://{host}:{port}/");
 
             var settings = new WebserverSettings(host, port);

@@ -1,0 +1,70 @@
+name: Deploy RG Balancer
+
+on:
+  workflow_dispatch:
+
+env: # 👈 global env
+  APP_NAME: purrtransport
+  BAL_REGION: cdg
+  RELAY_MATRIX: |
+  [
+    {"region": "cdg", "prefix": "france"},
+    {"region": "gru", "prefix": "brazil"},
+    {"region": "jnb", "prefix": "south-africa"},
+    {"region": "ewr", "prefix": "nj-us"},
+    {"region": "nrt", "prefix": "japan"},
+    {"region": "syd", "prefix": "australia"},
+    {"region": "hkg", "prefix": "china"}
+  ]
+
+jobs:
+  # -------------------
+  # Balancer (single region, no env overrides)
+  # -------------------
+  balancer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Balancer
+        working-directory: PurrBalancer
+        run: |
+          flyctl deploy --remote-only \
+            --app $APP_NAME \
+            --primary-region $BAL_REGION
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  # -------------------
+  # Relays (matrix deploy)
+  # -------------------
+  deploy:
+    runs-on: ubuntu-latest
+    needs: balancer
+    strategy:
+      matrix:
+        include: ${{ fromJson(env.RELAY_MATRIX) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Relay
+        working-directory: PurrLay
+        run: |
+          flyctl deploy --remote-only \
+            --app "${APP_NAME}-${{ matrix.prefix }}" \
+            --primary-region ${{ matrix.region }} \
+            --env BALANCER_URL=${{ secrets.BALANCER_URL }} \
+            --env HOST_DOMAIN=${{ secrets.HOST_DOMAIN }} \
+            --env HOST_REGION=${{ matrix.prefix }} \
+            --env HOST_SSL="true"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
