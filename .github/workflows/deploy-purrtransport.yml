@@ -31,6 +31,13 @@ jobs:
       - name: Install Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Ensure cert exists
+        run: |
+          flyctl certs create "${APP_NAME}.${APP_DOMAIN}" \
+            --app $APP_NAME
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy Balancer
         working-directory: PurrBalancer
         run: |
@@ -57,6 +64,13 @@ jobs:
       - name: Install Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Ensure cert exists
+        run: |
+          flyctl certs create "${APP_NAME}-${{ matrix.prefix }}.${APP_DOMAIN}" \
+            --app "${APP_NAME}-${{ matrix.prefix }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy Relay
         working-directory: PurrLay
         run: |
@@ -64,7 +78,7 @@ jobs:
             --app "${APP_NAME}-${{ matrix.prefix }}" \
             --primary-region ${{ matrix.region }} \
             --env BALANCER_URL=${{ secrets.BALANCER_URL }} \
-            --env HOST_DOMAIN="${APP_DOMAIN}-${{ matrix.prefix }}" \
+            --env HOST_DOMAIN="${APP_NAME}-${{ matrix.prefix }}.${APP_DOMAIN}" \
             --env HOST_REGION=${{ matrix.prefix }} \
             --env HOST_SSL="true"
         env:
