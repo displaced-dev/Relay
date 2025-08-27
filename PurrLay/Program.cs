@@ -101,14 +101,23 @@ internal static class Program
 
             while (true)
             {
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("internal_key_secret", SECRET_INTERNAL);
+                try
+                {
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.Add("internal_key_secret", SECRET_INTERNAL);
 
-                using var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
-                using var response = await client.PostAsync($"{balancer}/registerServer", content);
+                    using var content = new StringContent(serverJson, Encoding.UTF8, "application/json");
+                    using var response = await client.PostAsync($"{balancer}/registerServer", content);
 
-                if (!response.IsSuccessStatusCode)
-                    await Console.Error.WriteLineAsync($"Failed to register server: [{response.StatusCode}] {await response.Content.ReadAsStringAsync()}");
+                    if (!response.IsSuccessStatusCode)
+                        await Console.Error.WriteLineAsync(
+                            $"Failed to register server: [{response.StatusCode}] {await response.Content.ReadAsStringAsync()}");
+                }
+                catch (Exception e)
+                {
+                    await Console.Error.WriteLineAsync($"Error registering server: {e.Message}\n{e.StackTrace}");
+                }
+
                 await Task.Delay(SECONDS_BETWEEN_REGISTRATION_ATTEMPTS * 1000);
             }
         }
