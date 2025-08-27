@@ -51,32 +51,54 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Update Cloudflare DNS
+      - name: Update Cloudflare DNS (A + AAAA)
         run: |
-          IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[] | select(.Type | contains("v4")) | .Address')
-          echo "Updating DNS for ${APP_NAME}.${APP_DOMAIN} -> $IP"
-          
-          if [ -z "$IP" ]; then
-            echo "❌ No IPv4 found for $APP_NAME"
-            exit 1
+          # IPv4
+          IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[] | select(.Type=="v4") | .Address')
+          echo "Updating A record for ${APP_NAME}.${APP_DOMAIN} -> $IP"
+
+          if [ -n "$IP" ]; then
+            RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${APP_NAME}.${APP_DOMAIN}" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+            if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+              echo "Creating new A record"
+              curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+            else
+              echo "Updating existing A record $RECORD_ID"
+              curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+            fi
           fi
 
-          RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${APP_NAME}.${APP_DOMAIN}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" | jq -r '.result[0].id')
+          # IPv6
+          IPV6=$(flyctl ips list --app $APP_NAME --json | jq -r '.[] | select(.Type=="v6") | .Address')
+          echo "Updating AAAA record for ${APP_NAME}.${APP_DOMAIN} -> $IPV6"
 
-          if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
-            echo "Creating new A record"
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+          if [ -n "$IPV6" ]; then
+            RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=AAAA&name=${APP_NAME}.${APP_DOMAIN}" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
-          else
-            echo "Updating existing A record $RECORD_ID"
-            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+              -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+            if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+              echo "Creating new AAAA record"
+              curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"AAAA\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IPV6\",\"ttl\":120,\"proxied\":false}" | jq .
+            else
+              echo "Updating existing AAAA record $RECORD_ID"
+              curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"AAAA\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IPV6\",\"ttl\":120,\"proxied\":false}" | jq .
+            fi
           fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -129,14 +151,24 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Ensure IPv4 allocated
+      - name: Ensure IPs allocated
         run: |
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
+
+          # Ensure IPv4
           if ! flyctl ips list --app $RELAY_APP --json | jq -e '.[] | select(.Type=="v4")' > /dev/null; then
             echo "No IPv4 found, allocating one..."
             flyctl ips allocate-v4 --app $RELAY_APP --yes
           else
             echo "IPv4 already exists for $RELAY_APP"
+          fi
+
+          # Ensure IPv6
+          if ! flyctl ips list --app $RELAY_APP --json | jq -e '.[] | select(.Type=="v6")' > /dev/null; then
+            echo "No IPv6 found, allocating one..."
+            flyctl ips allocate-v6 --app $RELAY_APP
+          else
+            echo "IPv6 already exists for $RELAY_APP"
           fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -146,34 +178,56 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Update Cloudflare DNS
+      - name: Update Cloudflare DNS (A + AAAA)
         run: |
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
           
-          IP=$(flyctl ips list --app "${APP_NAME}-${{ matrix.prefix }}" --json | jq -r '.[] | select(.Type | contains("v4")) | .Address')
-          echo "Updating DNS for ${RELAY_APP}.${APP_DOMAIN} -> $IP"
+          # IPv4
+          IP=$(flyctl ips list --app $RELAY_APP --json | jq -r '.[] | select(.Type=="v4") | .Address')
+          echo "Updating A record for ${RELAY_APP}.${APP_DOMAIN} -> $IP"
           
-          if [ -z "$IP" ]; then
-            echo "❌ No IPv4 found for $APP_NAME"
-            exit 1
+          if [ -n "$IP" ]; then
+            RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${RELAY_APP}.${APP_DOMAIN}" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" | jq -r '.result[0].id')
+          
+            if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+              echo "Creating new A record"
+              curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+            else
+              echo "Updating existing A record $RECORD_ID"
+              curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+            fi
           fi
-
-          RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${RELAY_APP}.${APP_DOMAIN}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" | jq -r '.result[0].id')
-
-          if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
-            echo "Creating new A record"
-            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+          
+          # IPv6
+          IPV6=$(flyctl ips list --app $RELAY_APP --json | jq -r '.[] | select(.Type=="v6") | .Address')
+          echo "Updating AAAA record for ${RELAY_APP}.${APP_DOMAIN} -> $IPV6"
+          
+          if [ -n "$IPV6" ]; then
+            RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=AAAA&name=${RELAY_APP}.${APP_DOMAIN}" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
-          else
-            echo "Updating existing A record $RECORD_ID"
-            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+              -H "Content-Type: application/json" | jq -r '.result[0].id')
+          
+            if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+              echo "Creating new AAAA record"
+              curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"AAAA\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IPV6\",\"ttl\":120,\"proxied\":false}" | jq .
+            else
+              echo "Updating existing AAAA record $RECORD_ID"
+              curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data "{\"type\":\"AAAA\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IPV6\",\"ttl\":120,\"proxied\":false}" | jq .
+            fi
           fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
