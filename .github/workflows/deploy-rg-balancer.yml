@@ -27,7 +27,7 @@ jobs:
         run: |
           if ! flyctl apps list | grep -q "^$APP_NAME"; then
             echo "Creating app $APP_NAME in region $BAL_REGION"
-            flyctl apps create $APP_NAME --region $BAL_REGION
+            flyctl apps create $APP_NAME
           else
             echo "App $APP_NAME already exists"
           fi
@@ -76,7 +76,7 @@ jobs:
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
           if ! flyctl apps list | grep -q "^$RELAY_APP"; then
             echo "Creating relay app $RELAY_APP in region ${{ matrix.region }}"
-            flyctl apps create $RELAY_APP --region ${{ matrix.region }}
+            flyctl apps create $RELAY_APP
           else
             echo "Relay app $RELAY_APP already exists"
           fi
