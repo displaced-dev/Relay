@@ -53,7 +53,7 @@ jobs:
       - name: Deploy Relay
         working-directory: PurrLay
         run: |
-          flyctl deploy --remote-only \
+          flyctl deploy --remote-only --strategy immediate \
             --app "${APP_NAME}-${{ matrix.prefix }}" \
             --primary-region ${{ matrix.region }} \
             --env BALANCER_URL=${{ secrets.BALANCER_RG_URL }} \
