@@ -1,4 +1,4 @@
-name: Deploy RG Balancer
+name: Deploy Purr Balancer
 
 on:
   workflow_dispatch:
