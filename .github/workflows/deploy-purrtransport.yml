@@ -24,6 +24,7 @@ jobs:
   # Balancer (single region, no env overrides)
   # -------------------
   balancer:
+    name: Build Balancer
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,6 +55,7 @@ jobs:
   # Relays (matrix deploy)
   # -------------------
   deploy:
+    name: Build Relay
     runs-on: ubuntu-latest
     needs: balancer
     strategy:
