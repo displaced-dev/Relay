@@ -23,6 +23,17 @@ jobs:
       - name: Install Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
+      - name: Ensure app exists
+        run: |
+          if ! flyctl apps list | grep -q "^$APP_NAME"; then
+            echo "Creating app $APP_NAME in region $BAL_REGION"
+            flyctl apps create $APP_NAME --region $BAL_REGION
+          else
+            echo "App $APP_NAME already exists"
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy Balancer
         working-directory: PurrBalancer
         run: |
@@ -39,7 +50,6 @@ jobs:
             --app $APP_NAME
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
 
   # -------------------
   # Relays (matrix deploy)
@@ -60,6 +70,18 @@ jobs:
 
       - name: Install Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Ensure app exists
+        run: |
+          RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
+          if ! flyctl apps list | grep -q "^$RELAY_APP"; then
+            echo "Creating relay app $RELAY_APP in region ${{ matrix.region }}"
+            flyctl apps create $RELAY_APP --region ${{ matrix.region }}
+          else
+            echo "Relay app $RELAY_APP already exists"
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Deploy Relay
         working-directory: PurrLay
