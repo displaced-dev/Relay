@@ -97,7 +97,7 @@ jobs:
           flyctl deploy --remote-only --strategy immediate \
             --app "${APP_NAME}-${{ matrix.prefix }}" \
             --primary-region ${{ matrix.region }} \
-            --env BALANCER_URL="https://${APP_NAME}.${APP_DOMAIN}" \
+            --env BALANCER_URL="https://${APP_NAME}.fly.dev" \
             --env HOST_DOMAIN="${APP_NAME}-${{ matrix.prefix }}.fly.dev" \
             --env HOST_REGION=${{ matrix.prefix }} \
             --env HOST_SSL="true" \
