@@ -51,7 +51,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Force scale to 1
-        run: flyctl scale count 1 --app $APP_NAME
+        run: flyctl scale count 1 --app $APP_NAME --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -115,6 +115,6 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Force scale to 1
-        run: flyctl scale count 1 --app "${APP_NAME}-${{ matrix.prefix }}"
+        run: flyctl scale count 1 --app "${APP_NAME}-${{ matrix.prefix }}" --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
