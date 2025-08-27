@@ -3,7 +3,7 @@ name: Deploy RG Balancer
 on:
   workflow_dispatch:
 
-env: # 👈 global env
+env:
   APP_NAME: resolute-games
   APP_DOMAIN: purrservers.com
   APP_SECRET: ${{ secrets.RG_APP_SECRET }}
@@ -11,17 +11,14 @@ env: # 👈 global env
 
 jobs:
   # -------------------
-  # Balancer (single region, no env overrides)
+  # Balancer
   # -------------------
   balancer:
     name: Build Balancer
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Ensure app exists
         run: |
@@ -45,8 +42,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Ensure cert exists
-        run: |
-          flyctl certs create "${APP_NAME}.${APP_DOMAIN}" --app $APP_NAME || true
+        run: flyctl certs create "${APP_NAME}.${APP_DOMAIN}" --app $APP_NAME || true
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -57,18 +53,31 @@ jobs:
 
       - name: Update Cloudflare DNS
         run: |
-          IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[0].Address')
+          IP=$(flyctl ips list --app $APP_NAME --json | jq -r '.[] | select(.Type=="v4") | .Address')
           echo "Updating DNS for ${APP_NAME}.${APP_DOMAIN} -> $IP"
-          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+
+          RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${APP_NAME}.${APP_DOMAIN}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" \
-            | jq .
+            -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+          if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+            echo "Creating new A record"
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+          else
+            echo "Updating existing A record $RECORD_ID"
+            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"${APP_NAME}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   # -------------------
-  # Relays (matrix deploy)
+  # Relays
   # -------------------
   deploy:
     name: Build Relay
@@ -81,11 +90,8 @@ jobs:
             prefix: ewr-1
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Ensure app exists
         run: |
@@ -114,8 +120,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Ensure cert exists
-        run: |
-          flyctl certs create "${APP_NAME}-${{ matrix.prefix }}.${APP_DOMAIN}" --app $APP_NAME || true
+        run: flyctl certs create "${APP_NAME}-${{ matrix.prefix }}.${APP_DOMAIN}" --app "${APP_NAME}-${{ matrix.prefix }}" || true
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -127,12 +132,25 @@ jobs:
       - name: Update Cloudflare DNS
         run: |
           RELAY_APP="${APP_NAME}-${{ matrix.prefix }}"
-          IP=$(flyctl ips list --app $RELAY_APP --json | jq -r '.[0].Address')
+          IP=$(flyctl ips list --app $RELAY_APP --json | jq -r '.[] | select(.Type=="v4") | .Address')
           echo "Updating DNS for ${RELAY_APP}.${APP_DOMAIN} -> $IP"
-          curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+
+          RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${RELAY_APP}.${APP_DOMAIN}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" \
-            | jq .
+            -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+          if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
+            echo "Creating new A record"
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+          else
+            echo "Updating existing A record $RECORD_ID"
+            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{\"type\":\"A\",\"name\":\"${RELAY_APP}.${APP_DOMAIN}\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}" | jq .
+          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
