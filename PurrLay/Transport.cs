@@ -45,26 +45,26 @@ public static class Transport
         else HTTPRestAPI.webServer?.SendOne(host.connId, segment);
     }
 
-    public static void OnServerReceivedData(PlayerInfo player, ArraySegment<byte> data)
+    public static void OnServerReceivedData(PlayerInfo sender, ArraySegment<byte> data)
     {
         if (data.Array == null)
             return;
 
-        bool authenticated = _clientToRoom.ContainsKey(player);
+        bool authenticated = _clientToRoom.ContainsKey(sender);
 
         if (!authenticated)
         {
-            TryToAuthenticate(player, data);
+            TryToAuthenticate(sender, data);
             return;
         }
 
-        if (!_clientToRoom.TryGetValue(player, out var roomId))
+        if (!_clientToRoom.TryGetValue(sender, out var roomId))
             return;
 
         if (!_roomToHost.TryGetValue(roomId, out var hostId))
             return;
 
-        if (hostId == player)
+        if (hostId == sender)
         {
             var type = (HOST_PACKET_TYPE)data.Array[data.Offset];
             var subData = new ArraySegment<byte>(data.Array, data.Offset + 1, data.Count - 1);
@@ -90,19 +90,28 @@ public static class Transport
 
                     if (_clientToRoom.TryGetValue(new PlayerInfo(target, isUDP), out var room) && room == roomId)
                     {
-                        if (player.isUdp)
-                        {
-                            var method = (DeliveryMethod)subData.Array[subData.Offset + 4];
-                            var segment = new ArraySegment<byte>(
-                                subData.Array, subData.Offset + metdataLength + 1, subData.Count - metdataLength - 1);
+                        ArraySegment<byte> rawData;
+                        var method = DeliveryMethod.ReliableOrdered;
 
-                            HTTPRestAPI.udpServer?.SendOne(target, segment, method);
+                        if (sender.isUdp)
+                        {
+                            rawData = new ArraySegment<byte>(
+                                subData.Array, subData.Offset + metdataLength + 1, subData.Count - metdataLength - 1);
+                            method = (DeliveryMethod)subData.Array[subData.Offset + 4];
                         }
                         else
                         {
-                            var segment = new ArraySegment<byte>(
+                            rawData = new ArraySegment<byte>(
                                 subData.Array, subData.Offset + metdataLength, subData.Count - metdataLength);
-                            HTTPRestAPI.webServer?.SendOne(target, segment);
+                        }
+
+                        if (isUDP)
+                        {
+                            HTTPRestAPI.udpServer?.SendOne(target, rawData, method);
+                        }
+                        else
+                        {
+                            HTTPRestAPI.webServer?.SendOne(target, rawData);
                         }
                     }
                     break;
@@ -114,23 +123,28 @@ public static class Transport
             // Client
             if (_roomToHost.TryGetValue(roomId, out var host))
             {
+                if (data.Count <= 1)
+                    return;
+
                 _writer.Reset();
 
-                var buffer = new byte[data.Count + sizeof(byte) + sizeof(int)];
-                var connId = player.connId;
+                var connId = sender.connId;
 
                 _writer.Put((byte)SERVER_PACKET_TYPE.SERVER_CLIENT_DATA);
                 _writer.Put(connId);
-                _writer.Put(data.Array, data.Offset, data.Count);
+
+                if (sender.isUdp)
+                     _writer.Put(data.Array, data.Offset + 1, data.Count - 1);
+                else _writer.Put(data.Array, data.Offset, data.Count);
 
                 if (host.isUdp)
                 {
-                    var method = (DeliveryMethod)data[0];
-                    HTTPRestAPI.udpServer?.SendOne(host.connId, buffer, method);
+                    var method = sender.isUdp ? (DeliveryMethod)data[0] : DeliveryMethod.ReliableOrdered;
+                    HTTPRestAPI.udpServer?.SendOne(host.connId, _writer.AsReadOnlySpan(), method);
                 }
                 else
                 {
-                    HTTPRestAPI.webServer?.SendOne(host.connId, buffer);
+                    HTTPRestAPI.webServer?.SendOne(host.connId, _writer.AsReadOnlySpan());
                 }
             }
         }
@@ -241,7 +255,6 @@ public static class Transport
         for (int i = 0; i < connected.Count; i++)
         {
             var player = connected[i];
-            _connToUDP[player.connId] = player.isUdp;
             _writer.Put(player.connId);
         }
 

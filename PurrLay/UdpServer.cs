@@ -62,8 +62,9 @@ public class UdpServer : INetLogger
     {
         try
         {
+            var data = reader.GetRemainingBytesSegment();
             if (_localConnToGlobal.TryGetValue(connId, out var globalId))
-                Transport.OnServerReceivedData(new PlayerInfo(globalId, true), reader.GetRemainingBytesSegment());
+                Transport.OnServerReceivedData(new PlayerInfo(globalId, true), data);
         }
         catch (Exception e)
         {
