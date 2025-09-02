@@ -93,6 +93,14 @@ namespace JamesFrowen.SimpleWeb
             server.Send(connectionId, buffer);
         }
 
+        public void SendOne(int connectionId, ReadOnlySpan<byte> source)
+        {
+            var buffer = bufferPool.Take(source.Length);
+            source.CopyTo(new Span<byte>(buffer.array, 0, source.Length));
+            buffer.count = source.Length;
+            server.Send(connectionId, buffer);
+        }
+
         public bool KickClient(int connectionId) => server.CloseConnection(connectionId);
 
         public string GetClientAddress(int connectionId) => server.GetClientAddress(connectionId);

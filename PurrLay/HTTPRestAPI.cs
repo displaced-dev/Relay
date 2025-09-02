@@ -10,7 +10,8 @@ namespace PurrLay;
 
 public static class HTTPRestAPI
 {
-    static WebSockets? _server;
+    public static WebSockets? webServer;
+    public static UdpServer? udpServer;
 
     public static async Task RegisterRoom(string region, string roomName)
     {
@@ -58,8 +59,10 @@ public static class HTTPRestAPI
     [Serializable]
     internal struct ClientJoinInfo
     {
+        public bool ssl;
         public string? secret;
         public int port;
+        public int udpPort;
     }
 
     public static async Task<ApiResponse> OnRequest(HttpRequestBase req)
@@ -100,13 +103,18 @@ public static class HTTPRestAPI
 
         var secret = await Lobby.CreateRoom(region, name);
 
-        _server ??= new WebSockets(6942);
+        webServer ??= new WebSockets(6942);
+        udpServer ??= new UdpServer(Program.UDP_PORT);
 
-        return new ApiResponse(new JObject
+        bool ssl = Env.TryGetValueOrDefault("HOST_SSL", "false") == "true";
+
+        return new ApiResponse(JObject.FromObject(new ClientJoinInfo
         {
-            ["secret"] = secret,
-            ["port"] = _server.port
-        });
+            ssl = ssl,
+            port = webServer.port,
+            secret = secret,
+            udpPort = Program.UDP_PORT
+        }));
     }
 
     private static ApiResponse GetJoinDetails(HttpRequestBase req)
@@ -116,16 +124,20 @@ public static class HTTPRestAPI
         if (string.IsNullOrWhiteSpace(name))
             throw new Exception("Missing name");
 
-        if (_server == null)
+        if (webServer == null || udpServer == null)
             throw new Exception("No rooms available");
 
         if (!Lobby.TryGetRoom(name, out var room) || room == null)
             throw new Exception("Room not found");
 
+        var ssl = Env.TryGetValueOrDefault("HOST_SSL", "false") == "true";
+
         return new ApiResponse(JObject.FromObject(new ClientJoinInfo
         {
-            port = _server.port,
-            secret = room.clientSecret
+            ssl = ssl,
+            port = webServer.port,
+            secret = room.clientSecret,
+            udpPort = Program.UDP_PORT
         }));
     }
 }

@@ -55,6 +55,8 @@ internal static class Program
         [UsedImplicitly] public string region;
     }
 
+    public const int UDP_PORT = 7777;
+
     static async void RegisterRelayToBalancer()
     {
         try
@@ -88,11 +90,13 @@ internal static class Program
             var hostPort = Env.TryGetIntOrDefault("HOST_PORT", -1);
             string urlPort = hostPort == -1 ? "" : $":{hostPort}";
 
+            string endpoint = Env.TryGetValueOrDefault("HOST_ENDPOINT", (ssl == "true" ? "https://" : "http://") + domain + urlPort);
+
             var server = new RelayServer
             {
-                apiEndpoint = (ssl == "true" ? "https://" : "http://") + domain + urlPort,
+                apiEndpoint = endpoint,
                 host = domain,
-                udpPort = 7777,
+                udpPort = UDP_PORT,
                 webSocketsPort = 6942,
                 region = region
             };
