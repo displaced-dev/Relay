@@ -1,4 +1,6 @@
-﻿using LiteNetLib;
+﻿using System.Net;
+using LiteNetLib;
+using PurrBalancer;
 
 namespace PurrLay;
 
@@ -27,7 +29,13 @@ public class UdpServer : INetLogger
         _serverListener.PeerDisconnectedEvent += OnServerDisconnected;
         _serverListener.NetworkReceiveEvent += OnServerData;
 
-        _server.Start(port);
+        if (Env.TryGetValue("FLY_PROCESS_GROUP", out _))
+        {
+            var flyHost = Dns.GetHostAddresses("fly-global-services")
+                .First(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6);
+            _server.Start(IPAddress.Any, flyHost, port);
+        }
+        else _server.Start(port);
     }
 
     private static void OnServerConnectionRequest(ConnectionRequest request)
