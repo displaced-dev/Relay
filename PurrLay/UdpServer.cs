@@ -37,6 +37,7 @@ public class UdpServer : INetLogger
 
     private static void OnServerConnected(NetPeer conn)
     {
+        Console.WriteLine("Client connected to UDP");
         var global = Transport.ReserveConnId(true);
         _localConnToGlobal[conn] = global;
         _globalConnToLocal[global] = conn;
