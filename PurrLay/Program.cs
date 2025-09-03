@@ -151,13 +151,13 @@ internal static class Program
 
         try
         {
+            if (Env.TryGetValue("SECRET", out var secret) && secret != null)
+                SECRET_INTERNAL = secret;
+
             RegisterRelayToBalancer();
 
             var host = Env.TryGetValueOrDefault("HOST", "localhost");
             var port = Env.TryGetIntOrDefault("PORT", 8081);
-
-            if (Env.TryGetValue("SECRET", out var secret) && secret != null)
-                SECRET_INTERNAL = secret;
 
             Console.WriteLine($"Listening on http://{host}:{port}/");
 
