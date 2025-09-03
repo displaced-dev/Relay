@@ -37,6 +37,7 @@ public class UdpServer : INetLogger
                        ?? IPAddress.Any;
             var ipv6 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetworkV6)
                        ?? IPAddress.IPv6Any;
+            Console.WriteLine($"START: IPv4: {ipv4}, IPv6: {ipv6}");
             _server.Start(ipv4, ipv6, port);
         }
         else _server.Start(port);
