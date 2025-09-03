@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 using LiteNetLib;
 using PurrBalancer;
 
@@ -31,9 +32,12 @@ public class UdpServer : INetLogger
 
         if (Env.TryGetValue("FLY_PROCESS_GROUP", out _))
         {
-            var flyHost = Dns.GetHostAddresses("fly-global-services")
-                .First(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6);
-            _server.Start(IPAddress.Any, flyHost, port);
+            var addresses = Dns.GetHostAddresses("fly-global-services");
+            var ipv4 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork)
+                       ?? IPAddress.Any;
+            var ipv6 = addresses.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetworkV6)
+                       ?? IPAddress.IPv6Any;
+            _server.Start(ipv4, ipv6, port);
         }
         else _server.Start(port);
     }
