@@ -134,6 +134,9 @@ public static class HTTPRestAPI
 
     private static async Task<ApiResponse> AllocateRoom(HttpRequestBase req)
     {
+        if (req.Method != WatsonWebserver.Core.HttpMethod.GET)
+            return new ApiResponse(HttpStatusCode.NoContent);
+
         var region = req.RetrieveHeaderValue("region");
         var name = req.RetrieveHeaderValue("name");
 
@@ -175,6 +178,9 @@ public static class HTTPRestAPI
 
     private static async Task<ApiResponse> HandleJoin(HttpRequestBase req)
     {
+        if (req.Method != WatsonWebserver.Core.HttpMethod.GET)
+            return new ApiResponse(HttpStatusCode.NoContent);
+
         var name = req.RetrieveHeaderValue("name");
 
         if (string.IsNullOrEmpty(name))
