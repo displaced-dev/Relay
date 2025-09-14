@@ -15,6 +15,12 @@ public static class Transport
     static readonly NetDataWriter _writer = new();
     private static int _nextConnId;
 
+    public static bool TryGetRoomPlayerCount(ulong roomId, out int count)
+    {
+        count = default;
+        return _roomToClients.TryGetValue(roomId, out var list) && (count = list.Count) > 0;
+    }
+
     public static int ReserveConnId(bool isUdp)
     {
         var connId = _nextConnId++;
@@ -172,6 +178,7 @@ public static class Transport
             {
                 SendClientsDisconnected(roomId, conn);
                 list.Remove(conn);
+                Lobby.UpdateRoomPlayerCount(roomId, list.Count);
             }
         }
     }
@@ -215,13 +222,17 @@ public static class Transport
             }
 
             if (!_roomToClients.TryGetValue(room.roomId, out var list))
+            {
                 _roomToClients.Add(room.roomId, [player]);
+                Lobby.UpdateRoomPlayerCount(room.roomId, 1);
+            }
             else
             {
                 if (isHost)
                      SendClientsConnected(room.roomId, list);
                 else SendClientsConnected(room.roomId, player);
                 list.Add(player);
+                Lobby.UpdateRoomPlayerCount(room.roomId, list.Count);
             }
 
             SendSingleCode(player, SERVER_PACKET_TYPE.SERVER_AUTHENTICATED);

@@ -7,6 +7,14 @@ using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace PurrBalancer;
 
+[Serializable]
+public struct RoomInfo
+{
+    public string name;
+    public string region;
+    public int connectedPlayers;
+}
+
 public static class HTTPRestAPI
 {
     private static readonly List<RelayServer> _relayServers = [];
@@ -101,6 +109,8 @@ public static class HTTPRestAPI
 
     static readonly Dictionary<string, string> _roomToRegion = new();
 
+    private static readonly List<RoomInfo> _rooms = new();
+
     public static async Task<ApiResponse> OnRequest(HttpRequestBase req)
     {
         if (req.Url == null)
@@ -123,13 +133,44 @@ public static class HTTPRestAPI
                 return RegisterRoom(req);
             case "/unregisterRoom":
                 return UnregisterRoom(req);
+            case "/updateConnectionCount":
+                return UpdateConnectionCount(req);
             case "/join":
                 return await HandleJoin(req);
             case "/allocate_ws":
                 return await AllocateRoom(req);
+            case "/list":
+                return await SearchRooms(req);
             default:
                 return new ApiResponse(HttpStatusCode.NotFound);
         }
+    }
+
+    private static Task<ApiResponse> SearchRooms(HttpRequestBase req)
+    {
+        const int PAGE_SIZE = 50;
+
+        if (req.Method != WatsonWebserver.Core.HttpMethod.GET)
+            return Task.FromResult(new ApiResponse(HttpStatusCode.NoContent));
+
+        var pageNumberStr = req.RetrieveQueryValue("page") ?? "0";
+
+        if (!int.TryParse(pageNumberStr, out var pg))
+            throw new Exception("PurrBalancer_SearchRooms: Invalid page");
+
+        int startIdx = pg * PAGE_SIZE;
+        var response = new JObject();
+        var servers = new JArray();
+
+        for (int i = startIdx; i < _rooms.Count; ++i)
+        {
+            servers.Add(JObject.FromObject(_rooms[i]));
+        }
+
+        response.Add("results", servers);
+        response.Add("total", _rooms.Count);
+
+        return Task.FromResult(new ApiResponse(response));
     }
 
     private static async Task<ApiResponse> AllocateRoom(HttpRequestBase req)
@@ -229,8 +270,55 @@ public static class HTTPRestAPI
         if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
             throw new Exception("PurrBalancer_unregisterRoom: Invalid headers");
 
+        if (!string.Equals(internalSecret, Program.SECRET_INTERNAL))
+            throw new Exception("PurrBalancer: Invalid internal secret");
+
         if (!_roomToRegion.Remove(name, out _))
             throw new Exception("PurrBalancer: Room not found");
+
+        for (var i = 0; i < _rooms.Count; i++)
+        {
+            if (_rooms[i].name == name)
+            {
+                _rooms.RemoveAt(i);
+                break;
+            }
+        }
+
+        return new ApiResponse(new JObject
+        {
+            ["status"] = "ok"
+        });
+    }
+
+    private static ApiResponse UpdateConnectionCount(HttpRequestBase req)
+    {
+        var name = req.RetrieveHeaderValue("name");
+        var internalSecret = req.RetrieveHeaderValue("internal_key_secret");
+        var count = req.RetrieveHeaderValue("count");
+
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(internalSecret))
+            throw new Exception("PurrBalancer_unregisterRoom: Invalid headers");
+
+        if (!string.Equals(internalSecret, Program.SECRET_INTERNAL))
+            throw new Exception("PurrBalancer: Invalid internal secret");
+
+        if (!_roomToRegion.ContainsKey(name))
+            throw new Exception("PurrBalancer: Room not found");
+
+        if (!int.TryParse(count, out var countNumber))
+            throw new Exception("PurrBalancer: Invalid count");
+
+        for (var i = 0; i < _rooms.Count; i++)
+        {
+            var room = _rooms[i];
+            if (room.name == name)
+            {
+                room.connectedPlayers = countNumber;
+                _rooms[i] = room;
+                break;
+            }
+        }
 
         return new ApiResponse(new JObject
         {
@@ -255,6 +343,13 @@ public static class HTTPRestAPI
 
         if (!_roomToRegion.TryAdd(name, region))
             throw new Exception("PurrBalancer: Room already registered");
+
+        _rooms.Add(new RoomInfo
+        {
+            name = name,
+            region = region,
+            connectedPlayers = 0
+        });
 
         return new ApiResponse(new JObject
         {

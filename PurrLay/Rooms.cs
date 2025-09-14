@@ -13,18 +13,27 @@ public static class Lobby
 {
     static readonly Dictionary<string, Room> _room = new();
     static readonly Dictionary<ulong, string> _roomIdToName = new();
-    
+
     static ulong _roomIdCounter;
-    
+
     public static async Task<string> CreateRoom(string region, string name)
     {
-        if (_room.ContainsKey(name))
-            throw new Exception("Room already exists");
-        
         var hostSecret = Guid.NewGuid().ToString().Replace("-", "");
 
+        if (_room.TryGetValue(name, out var existing))
+        {
+            if (Transport.TryGetRoomPlayerCount(existing.roomId, out var currentCount) && currentCount > 0)
+                throw new Exception("Room already exists");
+
+            existing.hostSecret = hostSecret;
+            existing.clientSecret = Guid.NewGuid().ToString().Replace("-", "");
+            existing.createdAt = DateTime.UtcNow;
+            return hostSecret;
+        }
+
         await HTTPRestAPI.RegisterRoom(region, name);
-        
+
+        Console.WriteLine($"Registered room {name}");
         _roomIdToName.Add(_roomIdCounter, name);
         _room.Add(name, new Room
         {
@@ -34,7 +43,7 @@ public static class Lobby
             createdAt = DateTime.UtcNow,
             roomId = _roomIdCounter++
         });
-        
+
         return hostSecret;
     }
 
@@ -42,11 +51,11 @@ public static class Lobby
     {
         return _room.TryGetValue(name, out room);
     }
-    
-    public static bool TryGetRoom(ulong roomId, out Room? room)
+
+    public static void UpdateRoomPlayerCount(ulong roomId, int newPlayerCount)
     {
-        room = null;
-        return _roomIdToName.TryGetValue(roomId, out var name) && _room.TryGetValue(name, out room);
+        if (_roomIdToName.TryGetValue(roomId, out var name))
+            _ = HTTPRestAPI.updateConnectionCount(name, newPlayerCount);
     }
 
     public static void RemoveRoom(ulong roomId)

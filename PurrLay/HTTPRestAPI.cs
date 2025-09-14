@@ -56,6 +56,28 @@ public static class HTTPRestAPI
         }
     }
 
+    public static async Task updateConnectionCount(string roomName, int newCount)
+    {
+        if (!Env.TryGetValue("BALANCER_URL", out var balancerUrl))
+            throw new Exception("Missing `BALANCER_URL` env variable");
+
+        using HttpClient client = new();
+
+        client.DefaultRequestHeaders.Add("name", roomName);
+        client.DefaultRequestHeaders.Add("internal_key_secret", Program.SECRET_INTERNAL);
+        client.DefaultRequestHeaders.Add("count", newCount.ToString());
+
+        var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"{balancerUrl}/updateConnectionCount"));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = response.Content.ReadAsByteArrayAsync();
+            var contentStr = Encoding.UTF8.GetString(content.Result);
+            throw new Exception(contentStr);
+        }
+    }
+
     [Serializable]
     internal struct ClientJoinInfo
     {
