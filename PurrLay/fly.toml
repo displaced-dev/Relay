@@ -41,6 +41,14 @@ primary_region = 'ewr'
 [[services.ports]]
   port = 7777
 
+[checks]
+  [checks.http]
+    port = 8081
+    path = "/"
+    interval = "10s"
+    timeout  = "2s"
+    grace_period = "5s"
+
 [[vm]]
   memory = '512mb'
   cpu_kind = 'shared'
